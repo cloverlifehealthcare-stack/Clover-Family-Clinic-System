@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clover
+      POSTGRES_PASSWORD: clover
+      POSTGRES_DB: clover_clinic
+    ports:
+      - "5432:5432"
+    volumes:
+      - clover_pg_data:/var/lib/postgresql/data
+
+volumes:
+  clover_pg_data:
