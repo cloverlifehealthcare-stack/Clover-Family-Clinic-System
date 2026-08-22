@@ -5,21 +5,26 @@ schema, RBAC model, and Phase 1–4 module roadmap.
 
 ## Status
 
-**Phase 1 backend is complete** — all six modules (auth/RBAC, patients, Animal Bite Center,
-consultations, appointments, billing) are built and verified in [`backend/`](backend/README.md)
-against a real database, with a 70-test suite.
+**Phase 1 is complete, backend and frontend.** All six modules — Auth & RBAC, Patients, Animal
+Bite Center, Consultations, Appointments, Billing — are built and verified against a real
+database and, for the frontend, in a real browser against the live API. See
+[`backend/README.md`](backend/README.md) (73 tests) and [`frontend/README.md`](frontend/README.md)
+for what was actually run and what each module's browser verification covered.
 
-**Frontend has everything except Billing** — Auth & RBAC, Patients, Animal Bite Center,
-Consultations, and Appointments (booking, doctor picker, check-in/complete/cancel/no-show,
-reschedule, double-booking rejection), all verified in a real browser against the live API (see
-[`frontend/README.md`](frontend/README.md)). Two real backend gaps were found and fixed while
-building Appointments: Admin couldn't fetch the doctor list, and appointment responses had no
-patient/doctor names. Only the Billing screen is left — its API is ready and waiting.
+Real bugs and gaps were found and fixed throughout, not just theoretical risks — both READMEs
+list them: an env-var leak in the test harness, a Postgres date-timezone bug, a falsy-zero bug on
+the actual first rabies vaccine dose, a missing "own patients" enforcement gap, a `NaN` bug in
+payment totals, and two backend gaps (a missing doctor-listing endpoint, appointments with no
+patient/doctor names) found only once the frontend actually needed them.
+
+Next up: Phase 2 (inventory, staff scheduling, reminders) per the architecture doc's roadmap, or
+hardening what's here — the frontend's `localStorage` token storage is flagged as a real
+production trade-off in its README.
 
 ## Layout
 
 ```
 backend/    Node.js + Express API
-frontend/   React SPA (not started yet)
+frontend/   React SPA
 docs/       Architecture & database design
 ```

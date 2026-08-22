@@ -1,9 +1,9 @@
 # Clover Clinic — Staff SPA
 
-React + Vite. Auth & RBAC foundation, Patients, Animal Bite Center, Consultations, and
-Appointments (book, check-in/complete/cancel/no-show, reschedule, double-booking rejection).
-Billing has a working, tested API in `../backend` but no screen here yet; its nav link goes to a
-"coming soon" placeholder.
+React + Vite. **All six Phase 1 modules have screens now**: Auth & RBAC, Patients, Animal Bite
+Center, Consultations, Appointments, and Billing (statements with a services-catalog picker,
+PWD/Senior discount, payments, void with the same "void payments before voiding the statement"
+rule as the backend).
 
 **Verified in a real browser against the live API**, not just built:
 
@@ -41,10 +41,18 @@ Billing has a working, tested API in `../backend` but no screen here yet; its na
   fixed in the same commit range), and confirmed double-booking the same doctor/date/time
   surfaces the backend's 409 as a clear on-screen message rather than a silent failure.
 
-Two real backend gaps were found and fixed while building this module, not just frontend work —
-see the backend README and git log: Admin had no way to fetch the doctor list (only
-`users.manage`-gated endpoints existed) and appointment responses had bare `patient_id`/
+Two real backend gaps were found and fixed while building the Appointments module, not just
+frontend work — see the backend README and git log: Admin had no way to fetch the doctor list
+(only `users.manage`-gated endpoints existed) and appointment responses had bare `patient_id`/
 `doctor_id` with no names, unlike every other module.
+- Billing: created a statement using the services-catalog dropdown (confirmed it auto-fills
+  description/price, still editable), applied a Senior Citizen discount (confirmed the 20%
+  applied only to the discount-eligible line, matching the backend's per-item logic), recorded a
+  partial payment (status → `partially_paid`), paid the remaining balance (status → `paid`,
+  payment form correctly disappeared since balance was ₱0), voided one payment (status correctly
+  reverted to `partially_paid`, balance recalculated), and confirmed voiding the whole statement
+  is blocked with a clear message while an active payment remains — the exact rule from the
+  backend's billing test suite, now visible as real UI behavior instead of just a passing test.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`
@@ -105,6 +113,12 @@ npm run dev
   time-slot `<select>`, 08:00–17:00), `AppointmentDetailPage` (status actions gated by the
   current status per the backend's own transition rules, plus reschedule while still
   `scheduled`).
+- **`src/pages/billing/`** — `BillingLandingPage` (picker), `PatientBillingPage` (list),
+  `BillingCreatePage` (dynamic charge rows, each optionally pre-filled from the `/api/services`
+  catalog; PWD/Senior discount fields appear only when a discount type is selected, matching the
+  minor-guardian pattern from `PatientForm`), `BillingDetailPage` (payments, per-payment void with
+  an inline reason field instead of a `window.prompt()` — keeps it consistent with the rest of the
+  app and testable the same way).
 
 ## Known gaps
 

@@ -528,6 +528,48 @@ button[disabled] {
   font-weight: 500;
 }
 
+.billing-item-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.billing-item-row select,
+.billing-item-row input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.billing-item-row input[placeholder='Description'] {
+  flex: 1;
+  min-width: 160px;
+}
+
+.billing-item-row .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
+.void-inline {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.void-inline input {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  width: 140px;
+}
+
 .prescription-card {
   border: 1px solid var(--color-border);
   border-radius: 6px;

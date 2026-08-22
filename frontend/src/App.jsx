@@ -20,6 +20,10 @@ import { ConsultationDetailPage } from './pages/consultations/ConsultationDetail
 import { AppointmentsListPage } from './pages/appointments/AppointmentsListPage';
 import { AppointmentCreatePage } from './pages/appointments/AppointmentCreatePage';
 import { AppointmentDetailPage } from './pages/appointments/AppointmentDetailPage';
+import { BillingLandingPage } from './pages/billing/BillingLandingPage';
+import { PatientBillingPage } from './pages/billing/PatientBillingPage';
+import { BillingCreatePage } from './pages/billing/BillingCreatePage';
+import { BillingDetailPage } from './pages/billing/BillingDetailPage';
 
 export default function App() {
   return (
@@ -159,7 +163,31 @@ export default function App() {
             path="billing"
             element={
               <ProtectedRoute permission="billing.view">
-                <ComingSoonPage title="Billing" />
+                <BillingLandingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:patientId/billing-statements"
+            element={
+              <ProtectedRoute permission="billing.view">
+                <PatientBillingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:patientId/billing-statements/new"
+            element={
+              <ProtectedRoute permission="billing.create">
+                <BillingCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="billing/statements/:id"
+            element={
+              <ProtectedRoute permission="billing.view">
+                <BillingDetailPage />
               </ProtectedRoute>
             }
           />

@@ -59,14 +59,23 @@ export function PatientDetailPage() {
         )}
       </dl>
 
-      {hasPermission('patients.history.view') && (
+      {(hasPermission('patients.history.view') || hasPermission('billing.view')) && (
         <div className="button-row">
-          <Link className="btn" to={`/patients/${id}/animal-bite-records`}>
-            Animal Bite Records
-          </Link>
-          <Link className="btn" to={`/patients/${id}/consultations`}>
-            Consultations
-          </Link>
+          {hasPermission('patients.history.view') && (
+            <>
+              <Link className="btn" to={`/patients/${id}/animal-bite-records`}>
+                Animal Bite Records
+              </Link>
+              <Link className="btn" to={`/patients/${id}/consultations`}>
+                Consultations
+              </Link>
+            </>
+          )}
+          {hasPermission('billing.view') && (
+            <Link className="btn" to={`/patients/${id}/billing-statements`}>
+              Billing
+            </Link>
+          )}
         </div>
       )}
 
