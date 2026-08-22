@@ -14,6 +14,7 @@ const appointmentsRoutes = require('./modules/appointments/appointments.routes')
 const servicesRoutes = require('./modules/services/services.routes');
 const billingRoutes = require('./modules/billing/billing.routes');
 const inventoryRoutes = require('./modules/inventory/inventory.routes');
+const schedulingRoutes = require('./modules/scheduling/scheduling.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api/services', servicesRoutes);
 // rather than a single fixed prefix (see billing.routes.js).
 app.use('/api', billingRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/scheduling', schedulingRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

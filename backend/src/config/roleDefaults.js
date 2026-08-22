@@ -12,6 +12,7 @@ const ROLE_DEFAULTS = {
     'billing.create', 'billing.view', 'payment.process', 'payment.void', 'financial.view',
     'audit.view',
     'inventory.view', 'inventory.adjust',
+    'scheduling.view', 'scheduling.manage',
   ],
   Admin: [
     'patients.create', 'patients.view', 'patients.history.view',
@@ -19,6 +20,7 @@ const ROLE_DEFAULTS = {
     'billing.create', 'billing.view', 'payment.process', 'payment.void',
     'audit.view', // row-scoped to own actions only, enforced in the audit module's service layer
     'inventory.view', 'inventory.adjust',
+    'scheduling.view', 'scheduling.manage',
   ],
   Doctor: [
     'patients.view', 'patients.history.view',
@@ -27,6 +29,7 @@ const ROLE_DEFAULTS = {
     'prescription.issue', 'education.record',
     'appointments.view', // own schedule only, row-scoped
     'inventory.view',
+    'scheduling.view', // own shifts/attendance only, row-scoped
   ],
   Nurse: [
     'patients.create', 'patients.view', 'patients.history.view',
@@ -35,11 +38,13 @@ const ROLE_DEFAULTS = {
     'education.record',
     'appointments.view',
     'inventory.view', 'inventory.adjust',
+    'scheduling.view',
   ],
   Cashier: [
     'patients.view', // billing-relevant fields only, enforced in the patients module's service layer
     'appointments.view',
     'billing.create', 'billing.view', 'payment.process',
+    'scheduling.view',
   ],
 };
 

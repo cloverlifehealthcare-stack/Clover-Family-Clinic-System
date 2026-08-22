@@ -42,6 +42,15 @@ const PERMISSIONS = [
   // touch inventory. Flag if this doesn't match how the clinic actually wants it split.
   { code: 'inventory.view', module: 'inventory', description: 'View stock levels, batches, and expiration/reorder alerts' },
   { code: 'inventory.adjust', module: 'inventory', description: 'Receive stock, and record corrections/spoilage/wastage' },
+
+  // Also Phase 2, also not in the original §3.2 matrix. Every role gets scheduling.view by
+  // default (everyone should be able to see their own shifts and clock themselves in/out —
+  // that's handled by requireAuth alone on the self-service endpoints, not gated by a
+  // permission, since it only ever touches the caller's own record); scheduling.manage
+  // (assign shifts, correct/override attendance for other staff) is Management/Admin only,
+  // mirroring the appointments.manage split.
+  { code: 'scheduling.view', module: 'scheduling', description: "View shifts and attendance (own, unless scheduling.manage)" },
+  { code: 'scheduling.manage', module: 'scheduling', description: 'Assign staff shifts and record/correct attendance for others' },
 ];
 
 module.exports = { PERMISSIONS };

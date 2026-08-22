@@ -5,8 +5,9 @@ auth/roles/permissions, patients, Animal Bite Center, Medical Consultation, appo
 billing. Phase 2 (§2: inventory, follow-up reminders, staff scheduling) has no detailed schema in
 the architecture doc the way Phase 1 did — each Phase 2 module's design is worked out inline as
 it's built, flagged clearly below and in code comments, the same way undocumented Phase 1 details
-(e.g. the follow-up permission mapping) were resolved throughout. **Inventory** is done; follow-up
-reminders and staff scheduling aren't started yet.
+(e.g. the follow-up permission mapping) were resolved throughout. **Inventory and Staff
+Scheduling & Attendance** are done; follow-up reminders aren't started yet (needs real Globe/
+Gmail credentials — will be built as a pluggable stub until those exist).
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
@@ -103,6 +104,19 @@ exists in `tests/billing.test.js`).
   — fulfills the upgrade path the Phase 1 migrations' own comments already called out
   ("free text in Phase 1; FK to Inventory in Phase 2"). Purely additive: the free-text
   `batchLotNumber` field still works standalone for anyone not tracking a specific item yet.
+- **Staff Scheduling & Attendance** (Phase 2, no doc spec): `GET/POST /api/scheduling/shifts`,
+  `DELETE /:id` (assigning/removing staff shifts — `scheduling.manage`, Management/Admin only);
+  `POST /api/scheduling/attendance/clock-in` and `/clock-out` (self-service — gated by
+  authentication alone, not a permission, since it only ever touches the caller's own record,
+  same reasoning as a Doctor's own appointment schedule); `GET /api/scheduling/shifts` and
+  `/attendance` (row-scoped to the caller's own records unless they hold `scheduling.manage`,
+  same pattern as Doctor's "own schedule only" in Appointments); `POST /api/scheduling/attendance`
+  (manual correction/override for any staff member — `scheduling.manage`). Deliberately **not**
+  wired into appointment booking (whether a doctor is actually scheduled to work when an
+  appointment is booked against them) — that's a natural next step once this existed, but doing
+  it now risked changing already-shipped Phase 1 appointment behavior; left as a flagged
+  follow-up in the migration comment, not silently skipped. Overnight shifts (crossing midnight)
+  aren't supported.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
   permission override write an `audit_logs` row, per the architecture doc's §1.4 security baseline.
 
