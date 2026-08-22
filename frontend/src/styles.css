@@ -1,0 +1,176 @@
+:root {
+  --color-primary: #1f6f54;
+  --color-primary-dark: #16523e;
+  --color-bg: #f5f7f6;
+  --color-surface: #ffffff;
+  --color-border: #dde3e0;
+  --color-text: #1c2a26;
+  --color-muted: #5c6b66;
+  --color-danger: #b3261e;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Login */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2.5rem;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--color-primary-dark);
+}
+
+.login-subtitle {
+  margin: 0 0 1rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.login-card label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin-top: 0.5rem;
+}
+
+.login-card input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.login-card button {
+  margin-top: 1.25rem;
+  padding: 0.7rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.login-card button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-error {
+  background: #fbe9e7;
+  color: var(--color-danger);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* Shell */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar {
+  background: var(--color-primary-dark);
+  color: white;
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.app-role {
+  opacity: 0.75;
+}
+
+.app-user button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+}
+
+.app-nav {
+  width: 220px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-nav a {
+  padding: 0.65rem 1.25rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.app-nav a:hover {
+  background: var(--color-bg);
+}
+
+.app-nav a.active {
+  background: #e5f1ec;
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  border-right: 3px solid var(--color-primary);
+}
+
+.app-content {
+  flex: 1;
+  padding: 2rem;
+}
+
+.page-loading,
+.page-error {
+  padding: 2rem;
+}
