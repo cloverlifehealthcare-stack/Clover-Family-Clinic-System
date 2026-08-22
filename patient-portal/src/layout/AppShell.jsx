@@ -13,7 +13,10 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <header className="app-topbar">
-        <span className="app-title">Clover Family Care — Patient Portal</span>
+        <span className="app-title">
+          <img src="/logo.jpg" alt="" className="app-logo" />
+          Clover Family Care — Patient Portal
+        </span>
         <div className="app-user">
           <span>
             {profile?.first_name} {profile?.last_name}

@@ -28,7 +28,10 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <header className="app-topbar">
-        <span className="app-title">Clover Family Care</span>
+        <span className="app-title">
+          <img src="/logo.jpg" alt="" className="app-logo" />
+          Clover Family Care
+        </span>
         <div className="app-user">
           <span>
             {user?.full_name} <span className="app-role">({user?.role})</span>

@@ -29,6 +29,7 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
+        <img src="/logo.jpg" alt="Clover Family Care" className="login-logo" />
         <h1>Clover Family Care</h1>
         <p className="login-subtitle">Clinic Management System</p>
 
