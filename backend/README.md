@@ -3,21 +3,22 @@
 Implements all six Phase 1 modules from `docs/clover-architecture.md` §7's build order:
 auth/roles/permissions, patients, Animal Bite Center, Medical Consultation, appointments, and
 billing. Phase 2, 3, and 4 (§2: inventory, staff scheduling, follow-up reminders, financial
-management, daily activity reports, full audit log UI) have no detailed schema in the
-architecture doc the way Phase 1 did — each module's design is worked out inline as it's built,
-flagged clearly below and in code comments, the same way undocumented Phase 1 details (e.g. the
-follow-up permission mapping) were resolved throughout. **All three Phase 2 modules — Inventory,
-Staff Scheduling & Attendance, and Follow-up Reminders — both Phase 3 modules — Financial
-Management and Daily Activity Reports — and the first Phase 4 module — the Full Audit Log UI —
-are done.** Reminders send through a pluggable stub provider (logs instead of actually sending)
-since real Globe/Gmail credentials don't exist yet — see below. Phase 4's other two pieces
-(Patient Portal, Advanced Reports/Backup) aren't started — see "Known gaps" for why.
+management, daily activity reports, full audit log UI, patient portal) have no detailed schema
+in the architecture doc the way Phase 1 did — each module's design is worked out inline as it's
+built, flagged clearly below and in code comments, the same way undocumented Phase 1 details
+(e.g. the follow-up permission mapping) were resolved throughout. **All three Phase 2 modules —
+Inventory, Staff Scheduling & Attendance, and Follow-up Reminders — both Phase 3 modules —
+Financial Management and Daily Activity Reports — and two of Phase 4's three modules — the Full
+Audit Log UI and the Patient Portal — are done.** Reminders send through a pluggable stub
+provider (logs instead of actually sending) since real Globe/Gmail credentials don't exist yet —
+see below. Phase 4's remaining piece, Advanced Reports/Backup, isn't started — see "Known gaps"
+for why.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
 round-trips (login, patient, animal-bite, consultation, appointment booking + double-booking
 rejection, billing statement + PWD/Senior discount + payment to "paid") work over HTTP, and the
-full test suite (116 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
+full test suite (126 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
 theoretical risks — see git log: `e48a077` (an env-var leak between Jest's setup process and its
 test workers), the date type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a
 day off due to timezone conversion), a falsy-zero bug where dose 0 — the actual first rabies
@@ -176,6 +177,62 @@ exists in `tests/billing.test.js`).
   only checked `toContain('user')`, which passes whether or not duplicates exist); a live browser
   smoke test did (the dropdown visibly showed `user` four times). Fixed with `.clearSelect()` +
   `.clearOrder()` before applying `.distinct()`, and a regression test now asserts uniqueness.
+- **Patient Portal** (Phase 4, no doc spec beyond §2's one-line name and §1.3's "separate app,
+  different auth flow" note; adults-only for v1 — see `patient-portal/README.md`'s "v1 scope"):
+  - `POST /api/patient-auth/register`, `/login`, `/refresh`, `POST /logout` + `GET`/`PATCH /me`
+    (all under `patient-auth`, not `auth` — a completely separate `patient_accounts` table, not
+    a new role in `users`). Registration always creates a **new** `patients` row, even when the
+    caller confirms a possible-duplicate warning — never auto-links to an existing record based
+    on name + date of birth, since both are guessable and auto-linking would be a real PHI
+    exposure under RA 10173, not a hypothetical one. See `patientAuth.service.js`'s comment for
+    the full reasoning, and `patient-portal/README.md` for the "call the clinic to link your
+    history" UX this produces instead.
+  - `GET /api/patient/doctors`, `GET`/`POST /api/patient/appointments`,
+    `POST /api/patient/appointments/:id/cancel` — thin wrappers around the existing
+    `appointmentsService`/`usersService` functions (same slot validation, same double-booking
+    prevention, same state machine), not a reimplementation. Every call forces the caller's own
+    `patientId` server-side; nothing here ever trusts a client-supplied patient ID.
+  - **Separate JWT secret pair** (`PATIENT_JWT_ACCESS_SECRET`/`PATIENT_JWT_REFRESH_SECRET`,
+    `patientToken.service.js`) from the staff pair — not just a different claim on the same
+    token. A leaked staff secret must never be able to forge a patient session or vice versa;
+    different secrets guarantee that structurally, a `type: 'patient'` claim is only a
+    belt-and-suspenders check on top. `patients.created_by` and `appointments.created_by` are
+    now nullable (two new migrations) — `NULL` means "the patient did this themselves," not
+    staff.
+  - Two new rate limiters (`patientLoginRateLimiter`, `patientRegisterRateLimiter`, tighter than
+    login at 10/hour since each registration success creates a real patient record) — separate
+    instances from the staff `loginRateLimiter`, not shared, so patient-portal traffic from a
+    shared network can't exhaust the budget staff logins depend on.
+  - **Two real bugs found and fixed while building this, both by a live smoke test — not by the
+    initial automated tests**:
+    1. Every genuinely public patient-auth endpoint (`register`, `login`) was returning 401 with
+       *no* Authorization header sent at all. Root cause: `app.js` mounts `animalBiteRoutes`,
+       `consultationsRoutes`, and `billingRoutes` at the bare `/api` prefix (see their own
+       comments — they mix multiple path shapes so they can't use a single fixed prefix), and
+       each applies `router.use(requireAuth)` unconditionally to *every* request that reaches
+       it, since Express can't know in advance which of a router's specific routes (if any) a
+       request will actually match. Every request under `/api/` was passing through at least
+       one of them before reaching its real destination. That was invisible for staff
+       endpoints — the same `requireAuth`, run redundantly early, still accepts a valid staff
+       token — but it flatly rejected patient-auth's public endpoints, which correctly send no
+       staff token at all. Fixed by registering `/api/patient-auth` and `/api/patient` earlier
+       in `app.js`, ahead of the bare-`/api` mounts, the same way `/api/auth` already avoided
+       this by being registered early. **This was a pre-existing latent issue in the routing
+       structure, not something the Patient Portal introduced** — it just took a genuinely
+       public new endpoint to expose it, since every prior module happened to require staff
+       auth too.
+    2. Once (1) was fixed, `patientPortal.test.js` still failed on ~3 of its own tests — a
+       second issue, not a leftover of the first. That test file legitimately registers ~15
+       accounts across its cases, exceeding `patientRegisterRateLimiter`'s real 10/hour cap
+       within a single test run; the accounts past the limit got a 429 with no tokens, so later
+       assertions using those (now-undefined) tokens 401'd. Rather than loosen the real limit to
+       fit test volume, added a `skip: () => env.nodeEnv === 'test'` to every rate limiter — the
+       same test-only carve-out `app.js` already uses for `morgan` logging, not a change to the
+       actual policy. This also closes a latent flakiness risk in the existing staff
+       `loginRateLimiter`, which had avoided this by luck: Jest gives each test *file* its own
+       fresh `app.js` module (and so a fresh in-memory limiter store), and no single existing
+       file happened to call `loginAs()` more than 30 times — but nothing guaranteed that would
+       stay true as the suite grew.
 
 ## Running it locally
 
@@ -189,9 +246,10 @@ npm install
 
 # 3. Configure environment
 cp .env.example .env
-# Edit .env — at minimum set real JWT_ACCESS_SECRET / JWT_REFRESH_SECRET
-# (node -e "console.log(require('crypto').randomBytes(48).toString('hex'))")
-# and a real SEED_MANAGEMENT_PASSWORD.
+# Edit .env — at minimum set real JWT_ACCESS_SECRET / JWT_REFRESH_SECRET and
+# PATIENT_JWT_ACCESS_SECRET / PATIENT_JWT_REFRESH_SECRET (all four different values —
+# node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"), and a real
+# SEED_MANAGEMENT_PASSWORD.
 
 # 4. Create the schema and seed roles/permissions/the first Management account
 npm run migrate
@@ -244,12 +302,11 @@ available from `requireAuth` for that filtering.
   if that becomes a real problem.
 - `cors()` currently allows any origin. Fine for local development; before staging/production,
   lock it to the actual frontend origin(s) (`cors({ origin: [...] })`) once that URL is known.
-- Phase 4's other two modules aren't built: **Patient Portal** is deliberately a separate
-  frontend app per §1.3 (its own patient self-registration/login, a public-facing security
-  posture very different from staff auth) — a second frontend project to stand up, not an
-  addition to this API's existing route structure, though it would reuse `patients`/
-  `appointments` underneath. **Advanced Reports/Backup**'s backup half is a hosting decision
-  (managed Postgres with automated daily backups, §1.3) that needs a real cloud provider account
-  — nothing to build in this repo until that account exists; the "advanced reports" half is
-  open-ended without a specific spec of which reports beyond what Financial Management and Daily
-  Activity Reports already cover.
+- Phase 4's remaining module isn't built: **Advanced Reports/Backup**'s backup half is a hosting
+  decision (managed Postgres with automated daily backups, §1.3) that needs a real cloud provider
+  account — nothing to build in this repo until that account exists; the "advanced reports" half
+  is open-ended without a specific spec of which reports beyond what Financial Management and
+  Daily Activity Reports already cover.
+- Patient Portal gaps (self-service password/email change, no tool to link an existing
+  staff-created patient to a new portal account, no guardian-managed accounts for minors) are
+  documented in `patient-portal/README.md`'s "Known gaps" rather than duplicated here.

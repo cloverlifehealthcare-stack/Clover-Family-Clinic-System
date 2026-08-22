@@ -19,6 +19,8 @@ const remindersRoutes = require('./modules/reminders/reminders.routes');
 const financialRoutes = require('./modules/financial/financial.routes');
 const reportsRoutes = require('./modules/reports/reports.routes');
 const auditRoutes = require('./modules/audit/audit.routes');
+const patientAuthRoutes = require('./modules/patientAuth/patientAuth.routes');
+const patientPortalRoutes = require('./modules/patientPortal/patientPortal.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -43,6 +45,20 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/patients', patientsRoutes);
+// Patient Portal routes are registered here — before the bare-/api mounts just below — not
+// with the rest of the Phase 4 routes further down. Those bare-/api routers (animalBiteRoutes,
+// consultationsRoutes, billingRoutes) apply their own router.use(requireAuth) unconditionally
+// to every request that reaches them, since Express has no way to know in advance which of
+// their specific routes (if any) a request will match. Every request under /api/ was passing
+// through at least one of them first. That was invisible for staff endpoints — the same
+// requireAuth, run redundantly early, still accepts a valid staff token — but it 401'd
+// patient-auth's genuinely public endpoints (register/login/refresh) outright, since those
+// have no staff Authorization header at all. Moving patient-auth ahead of the bare-/api
+// mounts means Express fully handles and responds to a /api/patient-auth/* or /api/patient/*
+// request from its own router before ever reaching them, the same way /api/auth/login above
+// already avoided this by being registered early too.
+app.use('/api/patient-auth', patientAuthRoutes);
+app.use('/api/patient', patientPortalRoutes);
 // Mixes /api/animal-bite-records/* and /api/patients/:patientId/animal-bite-records —
 // mounted at /api rather than a single fixed prefix (see animalBite.routes.js).
 app.use('/api', animalBiteRoutes);

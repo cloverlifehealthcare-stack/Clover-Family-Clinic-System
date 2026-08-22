@@ -1,0 +1,348 @@
+:root {
+  --color-primary: #1f6f54;
+  --color-primary-dark: #16523e;
+  --color-bg: #f5f7f6;
+  --color-surface: #ffffff;
+  --color-border: #dde3e0;
+  --color-text: #1c2a26;
+  --color-muted: #5c6b66;
+  --color-danger: #b3261e;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+button {
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Login / Register */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.login-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 2.5rem;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--color-primary-dark);
+}
+
+.login-subtitle {
+  margin: 0 0 1rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.login-card label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin-top: 0.5rem;
+}
+
+.login-card input {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.login-card button {
+  margin-top: 1.25rem;
+  padding: 0.7rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.login-card button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login-error {
+  background: #fbe9e7;
+  color: var(--color-danger);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.login-footer {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.login-footer a {
+  color: var(--color-primary-dark);
+  font-weight: 600;
+}
+
+.login-note {
+  margin-top: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+/* Shell */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar {
+  background: var(--color-primary-dark);
+  color: white;
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.app-user button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 0.35rem 0.8rem;
+  border-radius: 6px;
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+}
+
+.app-nav {
+  width: 200px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-nav a {
+  padding: 0.65rem 1.25rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.app-nav a:hover {
+  background: var(--color-bg);
+}
+
+.app-nav a.active {
+  background: #e5f1ec;
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  border-right: 3px solid var(--color-primary);
+}
+
+.app-content {
+  flex: 1;
+  padding: 2rem;
+  max-width: 780px;
+}
+
+.page-loading,
+.page-error {
+  padding: 2rem;
+}
+
+.page-description {
+  color: var(--color-muted);
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.btn,
+button[type='submit'],
+.button-row button {
+  display: inline-block;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.btn:hover,
+button[type='submit']:hover {
+  background: var(--color-primary-dark);
+}
+
+button[disabled] {
+  opacity: 0.6;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.92rem;
+}
+
+.table th {
+  background: var(--color-bg);
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.form-error {
+  background: #fbe9e7;
+  color: var(--color-danger);
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: #e5e9e7;
+  color: var(--color-muted);
+}
+
+.status-completed,
+.status-checked_in,
+.status-scheduled {
+  background: #fdf1da;
+  color: #a16207;
+}
+
+.status-cancelled,
+.status-no_show {
+  background: #fbe4e2;
+  color: var(--color-danger);
+}
+
+.record-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.record-section h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+  color: var(--color-primary-dark);
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.inline-form label,
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.inline-form input,
+.inline-form select,
+.form-grid input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  max-width: 480px;
+}
+
+.field-wide {
+  grid-column: 1 / -1;
+}
+
+.required {
+  color: var(--color-danger);
+  margin-left: 0.2rem;
+}
+
+.plain-list p {
+  margin: 0.35rem 0;
+}
