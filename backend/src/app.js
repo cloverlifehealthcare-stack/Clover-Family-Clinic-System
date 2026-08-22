@@ -11,6 +11,8 @@ const patientsRoutes = require('./modules/patients/patients.routes');
 const animalBiteRoutes = require('./modules/animal-bite/animalBite.routes');
 const consultationsRoutes = require('./modules/consultations/consultations.routes');
 const appointmentsRoutes = require('./modules/appointments/appointments.routes');
+const servicesRoutes = require('./modules/services/services.routes');
+const billingRoutes = require('./modules/billing/billing.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -40,6 +42,10 @@ app.use('/api/patients', patientsRoutes);
 app.use('/api', animalBiteRoutes);
 app.use('/api', consultationsRoutes);
 app.use('/api/appointments', appointmentsRoutes);
+app.use('/api/services', servicesRoutes);
+// Mixes /api/billing/* and /api/patients/:patientId/billing-statements — mounted at /api
+// rather than a single fixed prefix (see billing.routes.js).
+app.use('/api', billingRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

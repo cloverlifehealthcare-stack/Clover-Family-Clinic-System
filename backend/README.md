@@ -1,20 +1,23 @@
-# Clover Clinic API — Auth & RBAC, Patients, Animal Bite Center, Consultations, Appointments
+# Clover Clinic API — Phase 1 complete
 
-Implements the first five modules in `docs/clover-architecture.md` §7's build order: auth/roles/
-permissions, patient registration & records, Animal Bite Center, Medical Consultation, and basic
-appointments. Only billing is left in Phase 1.
+Implements all six Phase 1 modules from `docs/clover-architecture.md` §7's build order:
+auth/roles/permissions, patients, Animal Bite Center, Medical Consultation, appointments, and
+billing.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
 round-trips (login, patient, animal-bite, consultation, appointment booking + double-booking
-rejection) work over HTTP, and the full test suite (56 tests) plus lint pass. Real bugs were
-caught and fixed along the way, not just theoretical risks — see git log: `e48a077` (an env-var
-leak between Jest's setup process and its test workers), the date type-parser fix in
-`src/db/knex.js` (Postgres DATE columns serializing a day off due to timezone conversion), a
-falsy-zero bug where dose 0 — the actual first rabies vaccine dose — was rejected by an
-`if (!doseNumber)` check, and a missing "own patients" enforcement gap on animal bite diagnosis
-(any doctor could overwrite another doctor's diagnosis) found while building the same rule
-correctly into consultations.
+rejection, billing statement + PWD/Senior discount + payment to "paid") work over HTTP, and the
+full test suite (70 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
+theoretical risks — see git log: `e48a077` (an env-var leak between Jest's setup process and its
+test workers), the date type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a
+day off due to timezone conversion), a falsy-zero bug where dose 0 — the actual first rabies
+vaccine dose — was rejected by an `if (!doseNumber)` check, a missing "own patients" enforcement
+gap on animal bite diagnosis (any doctor could overwrite another doctor's diagnosis), and a `NaN`
+bug in payment totals where `+` silently did string concatenation instead of addition whenever
+`amountPaid` arrived as a JSON string rather than a number — found by a live smoke test, since
+the automated suite's number literals never exercised that path (a regression test for it now
+exists in `tests/billing.test.js`).
 
 ## What's here
 
@@ -56,6 +59,16 @@ correctly into consultations.
   permission — no dedicated one exists), `POST /:id/complete`. Referral notes go in the
   `remarks` field — the doc's schema has no dedicated referral column, so this follows it
   exactly rather than adding one.
+- **Billing**: `POST /api/billing/statements` (charges + PWD/Senior 20% discount, applied only to
+  discount-eligible line items), `GET /:id`, `GET /api/patients/:patientId/billing-statements`,
+  `POST /api/billing/statements/:id/payments` (status auto-advances unpaid → partially_paid →
+  paid; rejects overpayment past the remaining balance; `orNumber` required — typed in from the
+  clinic's manual OR booklet, §0/§6), `POST /:id/void` and `POST /api/billing/payments/:paymentId/void`
+  — both `payment.void` (Management + Admin, §0), no delete endpoint exists for either by design.
+  Voiding a statement is blocked while it has active payments — void those first, then the
+  statement — so a statement never silently loses track of money that was actually collected.
+  `GET/POST/PATCH /api/services` is a minimal pricing catalog (`billing.create` gates writes —
+  no dedicated "manage catalog" permission exists in §3.2, so this reuses the closest fit).
 - **Appointments**: `POST/GET /api/appointments`, `GET /:id`, `PATCH /:id` (reschedule, only
   while still `scheduled`), `POST /:id/check-in`, `/complete`, `/cancel`, `/no-show`. All 15-minute
   slots (§0); double-booking is blocked by a partial unique index on
