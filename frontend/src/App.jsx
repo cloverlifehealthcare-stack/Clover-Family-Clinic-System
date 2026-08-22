@@ -9,6 +9,10 @@ import { PatientsListPage } from './pages/patients/PatientsListPage';
 import { PatientCreatePage } from './pages/patients/PatientCreatePage';
 import { PatientDetailPage } from './pages/patients/PatientDetailPage';
 import { PatientEditPage } from './pages/patients/PatientEditPage';
+import { AnimalBiteLandingPage } from './pages/animal-bite/AnimalBiteLandingPage';
+import { PatientAnimalBiteRecordsPage } from './pages/animal-bite/PatientAnimalBiteRecordsPage';
+import { AnimalBiteCreatePage } from './pages/animal-bite/AnimalBiteCreatePage';
+import { AnimalBiteDetailPage } from './pages/animal-bite/AnimalBiteDetailPage';
 
 export default function App() {
   return (
@@ -60,7 +64,31 @@ export default function App() {
             path="animal-bite"
             element={
               <ProtectedRoute permission="patients.history.view">
-                <ComingSoonPage title="Animal Bite Center" />
+                <AnimalBiteLandingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:patientId/animal-bite-records"
+            element={
+              <ProtectedRoute permission="patients.history.view">
+                <PatientAnimalBiteRecordsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:patientId/animal-bite-records/new"
+            element={
+              <ProtectedRoute permission="animalbite.assessment.create">
+                <AnimalBiteCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="animal-bite-records/:id"
+            element={
+              <ProtectedRoute permission="patients.history.view">
+                <AnimalBiteDetailPage />
               </ProtectedRoute>
             }
           />

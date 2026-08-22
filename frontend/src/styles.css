@@ -349,3 +349,120 @@ button[disabled] {
 .back-link a {
   color: var(--color-primary-dark);
 }
+
+.page-description {
+  color: var(--color-muted);
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: var(--color-bg);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: #e5e9e7;
+  color: var(--color-muted);
+}
+
+.status-completed,
+.status-paid,
+.status-administered,
+.status-active {
+  background: #dcefe4;
+  color: #1c6b45;
+}
+
+.status-in_treatment,
+.status-diagnosed,
+.status-partially_paid,
+.status-checked_in,
+.status-scheduled {
+  background: #fdf1da;
+  color: #a16207;
+}
+
+.status-cancelled,
+.status-void,
+.status-no_show,
+.status-voided,
+.status-missed {
+  background: #fbe4e2;
+  color: var(--color-danger);
+}
+
+.record-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  max-width: 780px;
+}
+
+.record-section h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+  color: var(--color-primary-dark);
+}
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.inline-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.inline-form input,
+.inline-form select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.inline-form .checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.inline-form .field-wide {
+  flex: 1 1 100%;
+}
+
+.inline-form .form-error {
+  flex-basis: 100%;
+}
+
+.plain-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}

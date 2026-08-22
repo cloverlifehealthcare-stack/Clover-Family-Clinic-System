@@ -59,6 +59,17 @@ export function PatientDetailPage() {
         )}
       </dl>
 
+      {hasPermission('patients.history.view') && (
+        <div className="button-row">
+          <Link className="btn" to={`/patients/${id}/animal-bite-records`}>
+            Animal Bite Records
+          </Link>
+          <Link className="btn" to={`/patients/${id}/consultations`}>
+            Consultations
+          </Link>
+        </div>
+      )}
+
       <p className="back-link">
         <Link to="/patients">← Back to patients</Link>
       </p>
