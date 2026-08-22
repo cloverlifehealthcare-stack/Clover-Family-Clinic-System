@@ -16,6 +16,22 @@ const ALLOWED_TRANSITIONS = {
 // Postgres unique_violation on the appointments_doctor_slot_unique partial index (see migration).
 const UNIQUE_VIOLATION = '23505';
 
+// Every other module (patients, animal bite, consultations) returns human-readable joined
+// data, not bare foreign keys — appointments should too, rather than making the frontend do
+// an N+1 fetch per row to show a patient/doctor name in a list.
+function withNames(query) {
+  return query
+    .join('patients', 'patients.id', 'appointments.patient_id')
+    .join('users as doctor_user', 'doctor_user.id', 'appointments.doctor_id')
+    .select(
+      'appointments.*',
+      'patients.patient_code',
+      'patients.first_name as patient_first_name',
+      'patients.last_name as patient_last_name',
+      'doctor_user.full_name as doctor_name'
+    );
+}
+
 function assertOnSlotBoundary(scheduledTime) {
   const minutes = Number(scheduledTime.split(':')[1]);
   if (Number.isNaN(minutes) || minutes % SLOT_MINUTES !== 0) {
@@ -40,7 +56,7 @@ async function assertIsDoctor(doctorId) {
 
 function scopeToOwnScheduleIfDoctor(query, actingUser) {
   if (actingUser.roleName === 'Doctor') {
-    return query.andWhere('doctor_id', actingUser.id);
+    return query.andWhere('appointments.doctor_id', actingUser.id);
   }
   return query;
 }
@@ -89,11 +105,11 @@ async function createAppointment(input) {
     ipAddress,
   });
 
-  return db('appointments').where({ id: created.id }).first();
+  return withNames(db('appointments').where({ 'appointments.id': created.id })).first();
 }
 
 async function getAppointment(id, actingUser) {
-  let query = db('appointments').where({ id });
+  let query = withNames(db('appointments').where({ 'appointments.id': id }));
   query = scopeToOwnScheduleIfDoctor(query, actingUser);
   const appointment = await query.first();
 
@@ -104,20 +120,20 @@ async function getAppointment(id, actingUser) {
 }
 
 async function listAppointments(filters, actingUser) {
-  let query = db('appointments').orderBy('scheduled_date').orderBy('scheduled_time');
+  let query = withNames(db('appointments')).orderBy('appointments.scheduled_date').orderBy('appointments.scheduled_time');
   query = scopeToOwnScheduleIfDoctor(query, actingUser);
 
   if (filters.date) {
-    query = query.andWhere('scheduled_date', filters.date);
+    query = query.andWhere('appointments.scheduled_date', filters.date);
   }
   if (filters.doctorId && actingUser.roleName !== 'Doctor') {
-    query = query.andWhere('doctor_id', filters.doctorId);
+    query = query.andWhere('appointments.doctor_id', filters.doctorId);
   }
   if (filters.patientId) {
-    query = query.andWhere('patient_id', filters.patientId);
+    query = query.andWhere('appointments.patient_id', filters.patientId);
   }
   if (filters.status) {
-    query = query.andWhere('status', filters.status);
+    query = query.andWhere('appointments.status', filters.status);
   }
 
   return query;
@@ -177,7 +193,7 @@ async function updateAppointment(id, updates, { actingUserId, ipAddress }) {
     ipAddress,
   });
 
-  return db('appointments').where({ id }).first();
+  return withNames(db('appointments').where({ 'appointments.id': id })).first();
 }
 
 async function setStatus(id, newStatus, { actingUserId, ipAddress }) {
@@ -203,7 +219,7 @@ async function setStatus(id, newStatus, { actingUserId, ipAddress }) {
     ipAddress,
   });
 
-  return db('appointments').where({ id }).first();
+  return withNames(db('appointments').where({ 'appointments.id': id })).first();
 }
 
 module.exports = { createAppointment, getAppointment, listAppointments, updateAppointment, setStatus };

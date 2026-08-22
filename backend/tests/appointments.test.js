@@ -35,6 +35,10 @@ describe('POST /api/appointments', () => {
     expect(res.status).toBe(201);
     expect(res.body.status).toBe('scheduled');
     expect(res.body.slot_minutes).toBe(15);
+    // Joined display fields (docs: every other module returns human-readable data, not bare FKs).
+    expect(res.body.patient_first_name).toBe('Appt');
+    expect(typeof res.body.doctor_name).toBe('string');
+    expect(res.body.doctor_name.length).toBeGreaterThan(0);
   });
 
   it('rejects a Nurse (no appointments.manage by default)', async () => {

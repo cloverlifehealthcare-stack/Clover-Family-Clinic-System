@@ -81,7 +81,10 @@ exists in `tests/billing.test.js`).
   appointment correctly frees its slot for rebooking, which a plain unique constraint would not.
   Create/reschedule/status-change require `appointments.manage` (Management/Admin only, per
   §3.2 — Doctor/Nurse/Cashier get `appointments.view` only); a Doctor's view is row-scoped to
-  their own schedule in the service layer ("👁 own schedule").
+  their own schedule in the service layer ("👁 own schedule"). Every response joins in
+  `patient_first_name`/`patient_last_name`/`patient_code`/`doctor_name` — added after the
+  frontend appointment form needed patient/doctor names, not bare IDs, matching how every other
+  module already returns human-readable data.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
   permission override write an `audit_logs` row, per the architecture doc's §1.4 security baseline.
 
