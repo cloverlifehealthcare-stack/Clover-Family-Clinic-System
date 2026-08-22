@@ -21,7 +21,20 @@ follow-ups through a pluggable provider abstraction, currently backed by a stub 
 of sending — real Globe/Gmail credentials don't exist yet, so it's ready to wire in without any
 change to the calling code once they do.
 
-See [`backend/README.md`](backend/README.md) (103 tests) and
+**Phase 3 is complete — Financial Management and Daily Activity Reports are both done.** Same
+non-matrix situation as Phase 2: §2 names these modules ("Financial Management (sales/expense/
+profit, Sales Journal, Sales Ledger)", "Daily Activity Reports") without a schema, so the design —
+an `expenses` table plus a Sales Journal/Ledger computed from the existing `payments` table rather
+than a duplicated one — was worked out while building it. The Sales Journal/Ledger follow the BIR
+Manual Books of Accounts columnar format for a Non-VAT (Percentage Tax) service business, exactly
+as scoped in §0 — **pending your accountant/bookkeeper's sign-off before treating them as your
+official books**, called out on the page itself, not just here. Daily Activity Reports are
+deliberately operational-only (patient/appointment/attendance counts, no revenue figures) and
+live under a separate `reports.view` permission — Management and Admin both get it by default,
+unlike `financial.view`/`financial.manage`, which stay Management-only per §3.2's rule that a
+staff member (Admin included) can't see profit reports without an individual override.
+
+See [`backend/README.md`](backend/README.md) (111 tests) and
 [`frontend/README.md`](frontend/README.md) for what was actually run and what each module's
 browser verification covered. Real bugs and gaps were found and fixed throughout, not just
 theoretical risks — both READMEs list them: an env-var leak in the test harness, a Postgres

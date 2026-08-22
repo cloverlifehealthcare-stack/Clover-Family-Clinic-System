@@ -1,20 +1,21 @@
-# Clover Clinic API — Phase 1 + Phase 2 complete
+# Clover Clinic API — Phase 1 + Phase 2 + Phase 3 complete
 
 Implements all six Phase 1 modules from `docs/clover-architecture.md` §7's build order:
 auth/roles/permissions, patients, Animal Bite Center, Medical Consultation, appointments, and
-billing. Phase 2 (§2: inventory, staff scheduling, follow-up reminders) has no detailed schema in
-the architecture doc the way Phase 1 did — each Phase 2 module's design is worked out inline as
-it's built, flagged clearly below and in code comments, the same way undocumented Phase 1 details
-(e.g. the follow-up permission mapping) were resolved throughout. **All three Phase 2 modules —
-Inventory, Staff Scheduling & Attendance, and Follow-up Reminders — are done.** Reminders send
-through a pluggable stub provider (logs instead of actually sending) since real Globe/Gmail
-credentials don't exist yet — see below.
+billing. Phase 2 and Phase 3 (§2: inventory, staff scheduling, follow-up reminders, financial
+management, daily activity reports) have no detailed schema in the architecture doc the way
+Phase 1 did — each module's design is worked out inline as it's built, flagged clearly below and
+in code comments, the same way undocumented Phase 1 details (e.g. the follow-up permission
+mapping) were resolved throughout. **All three Phase 2 modules — Inventory, Staff Scheduling &
+Attendance, and Follow-up Reminders — and both Phase 3 modules — Financial Management and Daily
+Activity Reports — are done.** Reminders send through a pluggable stub provider (logs instead of
+actually sending) since real Globe/Gmail credentials don't exist yet — see below.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
 round-trips (login, patient, animal-bite, consultation, appointment booking + double-booking
 rejection, billing statement + PWD/Senior discount + payment to "paid") work over HTTP, and the
-full test suite (103 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
+full test suite (111 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
 theoretical risks — see git log: `e48a077` (an env-var leak between Jest's setup process and its
 test workers), the date type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a
 day off due to timezone conversion), a falsy-zero bug where dose 0 — the actual first rabies
@@ -133,6 +134,29 @@ exists in `tests/billing.test.js`).
   logs the message instead of sending — see `providers/stub*Provider.js`), so adding a real
   Globe SMS client or Gmail SMTP client later is a new file plus one env var, not a change to
   `reminders.service.js`.
+- **Financial Management** (Phase 3, no doc spec beyond §2's one-line name and §0's "pending your
+  accountant/bookkeeper's sign-off before go-live"): `GET/POST /api/financial/expenses`,
+  `POST /:id/void` (`financial.manage`, Management only by default — Admin needs an individual
+  `user_permissions` override, per §3.2's "a staff member cannot view Management's profit
+  reports" rule extended to the whole financial bucket); `GET /api/financial/sales-journal`,
+  `/sales-ledger`, `/summary` (`financial.view`, same restriction, all take `startDate`/`endDate`
+  query params). The Sales Journal/Ledger are computed from the existing `payments` table rather
+  than a duplicated one — a payment is the actual revenue-recognition event (that's when an OR
+  number is issued), so the journal is one row per payment and the ledger groups those into daily
+  totals with a running balance, the BIR Manual Books of Accounts columnar format named in §0. A
+  statement's PWD/Senior discount is shown on its journal row as a flag (`discount_type`), not
+  pro-rated into a dollar figure per partial payment — the discount was approved once against the
+  whole statement, and splitting it across payments would invent a number this system can't
+  actually verify. `financial.manage`/`financial.view` are **not** substitutes for an accountant's
+  review before these are treated as official books — flagged on the frontend page itself, not
+  just here. `expenses` is a new table with the same void pattern (`status`/`void_reason`/
+  `voided_by`/`voided_at`) as `payments` — no hard delete, for the same audit reasons.
+- **Daily Activity Report** (Phase 3, no doc spec): `GET /api/reports/daily-activity?date=YYYY-MM-DD`
+  (`reports.view`, Management **and** Admin by default — unlike financial data). Returns
+  operational counts only (new patients, animal-bite visits/consultations/appointments by status,
+  staff attendance by status) — **deliberately no revenue or profit figures**, so this can default
+  to Admin without reopening the "Admin can't see profit reports" rule through a side door; see the
+  comment at the top of `reports.service.js` for the reasoning kept in one place.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
   permission override write an `audit_logs` row, per the architecture doc's §1.4 security baseline.
 

@@ -16,6 +16,8 @@ const billingRoutes = require('./modules/billing/billing.routes');
 const inventoryRoutes = require('./modules/inventory/inventory.routes');
 const schedulingRoutes = require('./modules/scheduling/scheduling.routes');
 const remindersRoutes = require('./modules/reminders/reminders.routes');
+const financialRoutes = require('./modules/financial/financial.routes');
+const reportsRoutes = require('./modules/reports/reports.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -52,6 +54,8 @@ app.use('/api', billingRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/scheduling', schedulingRoutes);
 app.use('/api/reminders', remindersRoutes);
+app.use('/api/financial', financialRoutes);
+app.use('/api/reports', reportsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

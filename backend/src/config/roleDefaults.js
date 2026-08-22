@@ -14,6 +14,7 @@ const ROLE_DEFAULTS = {
     'inventory.view', 'inventory.adjust',
     'scheduling.view', 'scheduling.manage',
     'reminders.view', 'reminders.manage',
+    'financial.manage', 'reports.view',
   ],
   Admin: [
     'patients.create', 'patients.view', 'patients.history.view',
@@ -23,6 +24,8 @@ const ROLE_DEFAULTS = {
     'inventory.view', 'inventory.adjust',
     'scheduling.view', 'scheduling.manage',
     'reminders.view', 'reminders.manage',
+    'reports.view', // financial.view/financial.manage stay out — Admin only gets those via an
+    // individual user_permissions override, per §3.2's "unless individually authorized" rule.
   ],
   Doctor: [
     'patients.view', 'patients.history.view',

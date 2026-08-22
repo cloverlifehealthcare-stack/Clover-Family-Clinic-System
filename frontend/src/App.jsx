@@ -29,6 +29,8 @@ import { InventoryCreatePage } from './pages/inventory/InventoryCreatePage';
 import { InventoryDetailPage } from './pages/inventory/InventoryDetailPage';
 import { SchedulingPage } from './pages/scheduling/SchedulingPage';
 import { RemindersPage } from './pages/reminders/RemindersPage';
+import { FinancialPage } from './pages/financial/FinancialPage';
+import { DailyActivityReportPage } from './pages/reports/DailyActivityReportPage';
 
 export default function App() {
   return (
@@ -233,6 +235,22 @@ export default function App() {
             element={
               <ProtectedRoute permission="reminders.view">
                 <RemindersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="financial"
+            element={
+              <ProtectedRoute permission="financial.view">
+                <FinancialPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="reports"
+            element={
+              <ProtectedRoute permission="reports.view">
+                <DailyActivityReportPage />
               </ProtectedRoute>
             }
           />

@@ -14,6 +14,8 @@ const NAV_ITEMS = [
   { to: '/inventory', label: 'Inventory', permission: 'inventory.view' },
   { to: '/scheduling', label: 'Scheduling', permission: 'scheduling.view' },
   { to: '/reminders', label: 'Reminders', permission: 'reminders.view' },
+  { to: '/reports', label: 'Daily Activity', permission: 'reports.view' },
+  { to: '/financial', label: 'Financial', permission: 'financial.view' },
   { to: '/users', label: 'Staff Accounts', permission: 'users.manage' },
 ];
 

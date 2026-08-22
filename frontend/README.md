@@ -2,14 +2,17 @@
 
 React + Vite. **All six Phase 1 modules have screens**: Auth & RBAC, Patients, Animal Bite
 Center, Consultations, Appointments, and Billing. **All three Phase 2 modules are done too**:
-Inventory, Staff Scheduling & Attendance, and Follow-up Reminders — see `../backend/README.md`
-for why Phase 2's design isn't documented up front the way Phase 1's was.
+Inventory, Staff Scheduling & Attendance, and Follow-up Reminders. **So are both Phase 3
+modules**: Financial Management and Daily Activity Reports — see `../backend/README.md` for why
+Phase 2/3's design isn't documented up front the way Phase 1's was.
 
 **Verified in a real browser against the live API**, not just built:
 
-- Logged in as the seeded Management account (all 8 nav items show); created a Nurse account via
-  the API and confirmed their nav shows only the 5 items their permissions actually cover (no
-  Billing, no Staff Accounts, no Reminders); confirmed logout returns to `/login`; confirmed
+- Logged in as the seeded Management account (all 12 nav items show); created a Nurse account via
+  the API, confirmed via `GET /api/auth/me` exactly which permissions they hold, and confirmed
+  their nav shows only the 7 items those permissions actually cover — Dashboard, Patients, Animal
+  Bite Center, Consultations, Appointments, Inventory, Scheduling (no Billing, no Reminders, no
+  Daily Activity, no Financial, no Staff Accounts); confirmed logout returns to `/login`; confirmed
   navigating a Nurse directly to `/billing` by URL — not just hiding the link — renders "Access
   denied" rather than the page, since the API would reject it anyway (§1.1: the client never
   decides what's allowed, it only reflects what the server already permitted).
@@ -74,6 +77,19 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   and filtering by Type → Follow-up correctly narrowed the list to zero since only an appointment
   reminder existed. Confirmed the "Run Reminders Now" button and log filters are hidden/blocked
   per the same `reminders.view`/`reminders.manage` permission split used everywhere else.
+- Financial Management (Phase 3): as Management, created a patient, a billing statement, and a
+  payment via the API (₱800, OR-SMOKE-001), then confirmed the Financial page's Summary/Sales
+  Journal/Sales Ledger all picked it up correctly (₱800 revenue, the journal row showing the
+  right OR number/payor/amount, the ledger's daily total and running balance both ₱800), recorded
+  a ₱150 expense through the on-screen form (Total Expenses/Net Profit updated live), then voided
+  it through the same inline void-reason input pattern Billing uses — confirmed the status badge
+  flipped to "Voided", the Void control disappeared, and Total Expenses/Net Profit recalculated to
+  ₱0/₱800 without a page reload. Confirmed a Cashier (no `financial.view`) sees no Financial nav
+  link and gets "Access denied" navigating there directly by URL.
+- Daily Activity Report (Phase 3): confirmed the page shows the same day's new-patient count via
+  `newPatients`, and confirmed it deliberately carries no revenue/profit figures anywhere in the
+  response — that stays under Financial Management, which is gated more narrowly. Also confirmed
+  an out-of-range past date correctly returns all-zero counts rather than erroring.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`

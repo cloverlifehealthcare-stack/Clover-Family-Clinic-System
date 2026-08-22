@@ -57,6 +57,19 @@ const PERMISSIONS = [
   // not staff), so no role needs default access beyond the two that run/monitor the job.
   { code: 'reminders.view', module: 'reminders', description: 'View the reminder send log' },
   { code: 'reminders.manage', module: 'reminders', description: 'Manually trigger the reminder job' },
+
+  // Phase 3, also not in the original §3.2 matrix (which only covered Phase 1). financial.view
+  // already existed as a Phase 1 placeholder code ("View profit / expense / financial reports")
+  // per §3.2's business rule — Management only by default, Admin only via an individual
+  // user_permissions override, never a role default. financial.manage (record/void expenses) is
+  // new but follows the same restriction, since it's part of the same sensitive bucket.
+  { code: 'financial.manage', module: 'financial', description: 'Record and void expenses' },
+
+  // Daily Activity Report is operational (visit/appointment/attendance counts), not financial —
+  // it deliberately excludes revenue figures so it can default to Management + Admin without
+  // reopening the "Admin can't see profit reports" rule through a side door. See
+  // reports.service.js for the reasoning in one place.
+  { code: 'reports.view', module: 'reports', description: "View the Daily Activity Report" },
 ];
 
 module.exports = { PERMISSIONS };
