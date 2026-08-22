@@ -36,6 +36,17 @@ module.exports = {
     maxAttempts: parseInt(process.env.LOGIN_MAX_ATTEMPTS, 10) || 5,
     lockoutMinutes: parseInt(process.env.LOGIN_LOCKOUT_MINUTES, 10) || 15,
   },
+  // Comma-separated list of allowed origins for the two frontends (staff SPA + patient
+  // portal). Defaults cover local dev (frontend on 5173, patient-portal on 5174) plus the
+  // two Vercel URLs from this project's first deploy — override via CORS_ORIGINS once a
+  // custom domain replaces either .vercel.app URL, rather than editing code.
+  corsOrigins: (
+    process.env.CORS_ORIGINS ||
+    'http://localhost:5173,http://localhost:5174,https://clover-family-clinic-system-1sc7.vercel.app,https://clover-family-clinic-system-n6k2.vercel.app'
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   // docs/clover-architecture.md §0: Globe (SMS) and Gmail (email) are the confirmed channels;
   // real credentials don't exist yet, so both default to 'stub' (logs instead of sending —
   // see src/services/notifications/). Switch to 'globe'/'gmail' once real API

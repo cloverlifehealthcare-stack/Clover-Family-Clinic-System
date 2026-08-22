@@ -33,7 +33,21 @@ if (env.nodeEnv === 'production') {
 }
 
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    // No Origin header (server-to-server calls, curl, health checks) is allowed through —
+    // there's no browser same-origin policy to enforce there. A browser request with an
+    // Origin not in env.corsOrigins is rejected. See that config's comment for how to add a
+    // custom domain later without a code change.
+    origin(origin, callback) {
+      if (!origin || env.corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} is not allowed.`));
+      }
+    },
+  })
+);
 app.use(express.json());
 if (env.nodeEnv !== 'test') {
   app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
