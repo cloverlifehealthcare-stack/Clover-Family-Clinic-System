@@ -31,6 +31,7 @@ import { SchedulingPage } from './pages/scheduling/SchedulingPage';
 import { RemindersPage } from './pages/reminders/RemindersPage';
 import { FinancialPage } from './pages/financial/FinancialPage';
 import { DailyActivityReportPage } from './pages/reports/DailyActivityReportPage';
+import { TrendsReportPage } from './pages/reports/TrendsReportPage';
 import { AuditLogPage } from './pages/audit/AuditLogPage';
 
 export default function App() {
@@ -252,6 +253,14 @@ export default function App() {
             element={
               <ProtectedRoute permission="reports.view">
                 <DailyActivityReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="reports/trends"
+            element={
+              <ProtectedRoute permission="reports.view">
+                <TrendsReportPage />
               </ProtectedRoute>
             }
           />

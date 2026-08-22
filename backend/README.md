@@ -8,17 +8,20 @@ in the architecture doc the way Phase 1 did — each module's design is worked o
 built, flagged clearly below and in code comments, the same way undocumented Phase 1 details
 (e.g. the follow-up permission mapping) were resolved throughout. **All three Phase 2 modules —
 Inventory, Staff Scheduling & Attendance, and Follow-up Reminders — both Phase 3 modules —
-Financial Management and Daily Activity Reports — and two of Phase 4's three modules — the Full
-Audit Log UI and the Patient Portal — are done.** Reminders send through a pluggable stub
-provider (logs instead of actually sending) since real Globe/Gmail credentials don't exist yet —
-see below. Phase 4's remaining piece, Advanced Reports/Backup, isn't started — see "Known gaps"
-for why.
+Financial Management and Daily Activity Reports — and the Full Audit Log UI, the Patient Portal,
+and the clinical/operational half of Advanced Reports from Phase 4 — are done.** Reminders send
+through a pluggable stub provider (logs instead of actually sending) since real Globe/Gmail
+credentials don't exist yet — see below. Advanced Reports' scope was picked via a direct question
+back to the user rather than guessed at, since the doc names it in one line with no further spec:
+date-range clinical/operational trend reports, not a data-export toolkit or staff-performance
+reports (both considered, neither chosen). The backup half of that module isn't started — see
+"Known gaps" for why.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
 round-trips (login, patient, animal-bite, consultation, appointment booking + double-booking
 rejection, billing statement + PWD/Senior discount + payment to "paid") work over HTTP, and the
-full test suite (126 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
+full test suite (133 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
 theoretical risks — see git log: `e48a077` (an env-var leak between Jest's setup process and its
 test workers), the date type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a
 day off due to timezone conversion), a falsy-zero bug where dose 0 — the actual first rabies
@@ -233,6 +236,24 @@ exists in `tests/billing.test.js`).
        fresh `app.js` module (and so a fresh in-memory limiter store), and no single existing
        file happened to call `loginAs()` more than 30 times — but nothing guaranteed that would
        stay true as the suite grew.
+- **Advanced Reports — Clinical & Operational Trends** (Phase 4, scope picked via
+  AskUserQuestion — see the intro paragraph): `GET /api/reports/trends?startDate=&endDate=&groupBy=`
+  (`reports.view`, same Management + Admin default as Daily Activity Reports; `groupBy` is
+  `day`/`week`/`month`, defaulting to and falling back to `month` for anything else). Extends
+  Daily Activity Reports from a single day to a range: animal-bite visits broken down by
+  exposure category per period, consultation volume per period, follow-up completion rate
+  (`completed / (completed + missed + cancelled)`, excluding `upcoming` follow-ups since those
+  haven't happened yet), and appointment no-show/cancellation rates per period. Still
+  deliberately no revenue or profit figures, same reasoning as Daily Activity Reports. Found and
+  fixed one real bug immediately on the first test run, not by a live smoke test this time — the
+  automated tests caught it themselves: `date_trunc(...)::date` produces a DATE-typed column,
+  which the global type-parser override in `db/knex.js` (added back in Phase 1 for the
+  `date_of_birth` timezone bug) returns as a plain `'YYYY-MM-DD'` string, not a JS `Date` — the
+  same thing true of every other date column in this codebase (`visit_date`, `scheduled_date`,
+  etc.), but easy to forget when the value comes from a computed expression instead of a table
+  column. The first version called `.toISOString()` on it and crashed with a 500. Fixed by
+  treating `row.period` as the string it already is, matching the convention used everywhere
+  else.
 
 ## Running it locally
 
@@ -302,11 +323,12 @@ available from `requireAuth` for that filtering.
   if that becomes a real problem.
 - `cors()` currently allows any origin. Fine for local development; before staging/production,
   lock it to the actual frontend origin(s) (`cors({ origin: [...] })`) once that URL is known.
-- Phase 4's remaining module isn't built: **Advanced Reports/Backup**'s backup half is a hosting
-  decision (managed Postgres with automated daily backups, §1.3) that needs a real cloud provider
-  account — nothing to build in this repo until that account exists; the "advanced reports" half
-  is open-ended without a specific spec of which reports beyond what Financial Management and
-  Daily Activity Reports already cover.
+- The backup half of Advanced Reports/Backup still isn't built: it's a hosting decision (managed
+  Postgres with automated daily backups, §1.3) that needs a real cloud provider account —
+  nothing to build in this repo until that account exists. The "advanced reports" half is done
+  for the scope chosen (clinical/operational trends) — a data-export toolkit and staff-
+  performance reports were considered and not picked; either is a reasonable, separately-scoped
+  follow-up if wanted later.
 - Patient Portal gaps (self-service password/email change, no tool to link an existing
   staff-created patient to a new portal account, no guardian-managed accounts for minors) are
   documented in `patient-portal/README.md`'s "Known gaps" rather than duplicated here.

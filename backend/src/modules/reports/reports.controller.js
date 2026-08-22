@@ -5,4 +5,8 @@ const getDailyActivity = asyncHandler(async (req, res) => {
   res.json(await reportsService.getDailyActivity(req.query.date));
 });
 
-module.exports = { getDailyActivity };
+const getClinicalTrends = asyncHandler(async (req, res) => {
+  res.json(await reportsService.getClinicalTrends(req.query));
+});
+
+module.exports = { getDailyActivity, getClinicalTrends };

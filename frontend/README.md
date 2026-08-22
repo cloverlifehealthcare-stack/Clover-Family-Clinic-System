@@ -3,14 +3,16 @@
 React + Vite. **All six Phase 1 modules have screens**: Auth & RBAC, Patients, Animal Bite
 Center, Consultations, Appointments, and Billing. **All three Phase 2 modules are done too**:
 Inventory, Staff Scheduling & Attendance, and Follow-up Reminders. **So are both Phase 3
-modules**: Financial Management and Daily Activity Reports. **The first Phase 4 module — the
-Full Audit Log UI — is done too**; the other two (Patient Portal, Advanced Reports/Backup)
-aren't started — see `../backend/README.md` for why Phase 2–4's design isn't documented up
-front the way Phase 1's was, and for why those two are out of scope for now.
+modules**: Financial Management and Daily Activity Reports. **Three of Phase 4's modules are
+done too**: the Full Audit Log UI, the Patient Portal (a separate app — see `../patient-portal/`),
+and the clinical/operational trends half of Advanced Reports. Only the backup half of Advanced
+Reports remains, and it's blocked on a real cloud hosting account rather than out of scope by
+choice — see `../backend/README.md` for why Phase 2–4's design isn't documented up front the way
+Phase 1's was, and for the backup blocker.
 
 **Verified in a real browser against the live API**, not just built:
 
-- Logged in as the seeded Management account (all 13 nav items show); created a Nurse account via
+- Logged in as the seeded Management account (all 14 nav items show); created a Nurse account via
   the API, confirmed via `GET /api/auth/me` exactly which permissions they hold, and confirmed
   their nav shows only the 7 items those permissions actually cover — Dashboard, Patients, Animal
   Bite Center, Consultations, Appointments, Inventory, Scheduling (no Billing, no Reminders, no
@@ -103,6 +105,16 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   query, fixed and verified in the same pass (see backend README for the actual bug). Confirmed a
   Cashier (no `audit.view`) sees no Audit Log nav link and gets "Access denied" navigating there
   directly by URL.
+- Advanced Reports — Trends (Phase 4): generated real data via the API (an animal-bite record
+  diagnosed Category III, a completed follow-up, a consultation, a cancelled appointment) and
+  confirmed all four sections — animal bite by category, consultation volume, follow-up
+  completion, appointment outcomes — showed the correct counts and computed rates (100%
+  completion, 100% cancellation) for the period they landed in. Switched the Group By selector
+  from Month to Day and confirmed the same data re-grouped under today's exact date instead of
+  the month's first day, live, without a page reload. Confirmed the nav highlighting itself: the
+  new `/reports/trends` route nests under `/reports`, and `NavLink`'s default non-exact matching
+  would have kept "Daily Activity" highlighted while viewing "Trends" — added `end` matching for
+  `/reports` specifically and confirmed only one nav item highlights at a time now.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`

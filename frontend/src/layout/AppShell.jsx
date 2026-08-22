@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { to: '/scheduling', label: 'Scheduling', permission: 'scheduling.view' },
   { to: '/reminders', label: 'Reminders', permission: 'reminders.view' },
   { to: '/reports', label: 'Daily Activity', permission: 'reports.view' },
+  { to: '/reports/trends', label: 'Trends', permission: 'reports.view' },
   { to: '/financial', label: 'Financial', permission: 'financial.view' },
   { to: '/audit-log', label: 'Audit Log', permission: 'audit.view' },
   { to: '/users', label: 'Staff Accounts', permission: 'users.manage' },
@@ -40,7 +41,12 @@ export function AppShell() {
       <div className="app-body">
         <nav className="app-nav">
           {visibleItems.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/' || item.to === '/reports'}
+              className={({ isActive }) => (isActive ? 'active' : '')}
+            >
               {item.label}
             </NavLink>
           ))}

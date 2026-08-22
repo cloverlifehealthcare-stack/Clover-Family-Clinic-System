@@ -34,13 +34,22 @@ live under a separate `reports.view` permission — Management and Admin both ge
 unlike `financial.view`/`financial.manage`, which stay Management-only per §3.2's rule that a
 staff member (Admin included) can't see profit reports without an individual override.
 
-**Phase 4 is underway — the Full Audit Log UI and the Patient Portal are both done.** Per §2,
-Phase 4 also includes Advanced Reports/Backup, not built (the backup half is a hosting decision
-requiring real cloud infrastructure, not something buildable without your provider account). The
-Audit Log UI was picked first as the contained, lowest-risk piece: the underlying `audit_logs`
-data has been captured since Phase 1 (§1.4); it only adds the read side — search, filter, and CSV
-export — on top of it, gated by the existing `audit.view` permission with the same
-Management-sees-everything / Admin-sees-only-their-own-actions split §3.2 already specified.
+**Phase 4 is nearly complete — the Full Audit Log UI, the Patient Portal, and the reporting half
+of Advanced Reports are all done.** Per §2, Phase 4 also includes a backup mechanism, not built
+(a hosting decision requiring real cloud infrastructure, not something buildable without your
+provider account — see `backend/README.md`). The Audit Log UI was picked first as the contained,
+lowest-risk piece: the underlying `audit_logs` data has been captured since Phase 1 (§1.4); it
+only adds the read side — search, filter, and CSV export — on top of it, gated by the existing
+`audit.view` permission with the same Management-sees-everything /
+Admin-sees-only-their-own-actions split §3.2 already specified.
+
+**Advanced Reports** had no spec beyond a one-line name either, so its scope was picked directly
+rather than guessed at: **Clinical & Operational Trends** — `GET /api/reports/trends`, the same
+Daily Activity counts but over a date range grouped by day/week/month instead of a single day
+(animal-bite visits by exposure category, consultation volume, follow-up completion rate,
+appointment no-show/cancellation rates). A data-export toolkit and staff-performance reports were
+also on the table and weren't chosen; either is a reasonable follow-up if you want it later.
+Still deliberately no revenue/profit figures, matching Daily Activity Reports' restriction.
 
 The **Patient Portal** is, per §1.3, a deliberately separate app from the staff SPA —
 [`patient-portal/`](patient-portal/), its own React + Vite project, its own auth flow (a
@@ -58,7 +67,7 @@ API's routing (several routers mounted at a bare `/api` prefix were unconditiona
 staff auth on every request that reached them, invisible until a genuinely public endpoint hit
 it) — see `backend/README.md` for the full explanation and fix.
 
-See [`backend/README.md`](backend/README.md) (126 tests), [`frontend/README.md`](frontend/README.md),
+See [`backend/README.md`](backend/README.md) (133 tests), [`frontend/README.md`](frontend/README.md),
 and [`patient-portal/README.md`](patient-portal/README.md) for what was actually run and what
 each module's browser verification covered. Real bugs and gaps were found and fixed throughout,
 not just theoretical risks — the READMEs list them: an env-var leak in the test harness, a
@@ -66,7 +75,10 @@ Postgres date-timezone bug, a falsy-zero bug on the actual first rabies vaccine 
 "own patients" enforcement gap, a `NaN` bug in payment totals, a recurring backend gap — a role
 with the permission to *do* something (book an appointment, assign a shift) but no permission to
 fetch *who* to do it to — hit twice (doctor listing, staff roster) and, the second time, caught
-proactively before it ever broke in the browser, and the routing bug above.
+proactively before it ever broke in the browser, the routing bug above, and — in the Trends
+report — the same date-string-not-a-Date-object gotcha the original timezone bug fix caused,
+recurring in a new place (a computed `date_trunc(...)::date` column) and this time caught
+immediately by the first test run rather than a live smoke test.
 
 Both frontends' `localStorage` token storage remains a flagged production trade-off — see their
 READMEs' "Known gaps".

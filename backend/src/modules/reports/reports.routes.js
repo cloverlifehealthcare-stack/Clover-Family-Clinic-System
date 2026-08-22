@@ -8,5 +8,6 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get('/daily-activity', requirePermission('reports.view'), controller.getDailyActivity);
+router.get('/trends', requirePermission('reports.view'), controller.getClinicalTrends);
 
 module.exports = router;
