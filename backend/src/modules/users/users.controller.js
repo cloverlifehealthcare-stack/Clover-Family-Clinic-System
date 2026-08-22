@@ -6,6 +6,10 @@ const list = asyncHandler(async (req, res) => {
   res.json(await usersService.listUsers());
 });
 
+const listDoctors = asyncHandler(async (req, res) => {
+  res.json(await usersService.listActiveDoctors());
+});
+
 const get = asyncHandler(async (req, res) => {
   res.json(await usersService.getUser(req.params.id));
 });
@@ -37,4 +41,4 @@ const reactivate = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
-module.exports = { list, get, create, deactivate, reactivate };
+module.exports = { list, listDoctors, get, create, deactivate, reactivate };

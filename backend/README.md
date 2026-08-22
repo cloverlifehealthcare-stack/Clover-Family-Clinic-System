@@ -31,6 +31,11 @@ exists in `tests/billing.test.js`).
   to the role default, and audit-logs every denial. This is what makes "Management and authorized
   Admin personnel" work: grant one permission to one Admin without a special case in code.
 - **User management**: `GET/POST /api/users`, deactivate/reactivate — Management only.
+  `GET /api/users/doctors` is the one exception: gated by `appointments.manage` (Admin has it)
+  rather than `users.manage` (Management only), returning just `{id, full_name}` for active
+  Doctors — enough to build an appointment's doctor picker without exposing the full staff
+  roster. Added while building the frontend's appointment form and discovering Admin had no way
+  to fetch the doctor list otherwise.
 - **Patients**: `GET/POST /api/patients`, `PATCH /api/patients/:id`. `patient_code` is generated
   atomically (`MMYY-NNNN`, resets monthly). Creating a likely duplicate (same first/last name +
   DOB) returns `409` with the matches instead of silently creating one — resubmit with

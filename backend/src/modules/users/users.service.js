@@ -13,6 +13,20 @@ async function listUsers() {
   return db('users').join('roles', 'roles.id', 'users.role_id').select(PUBLIC_COLUMNS).orderBy('users.full_name');
 }
 
+/**
+ * Minimal active-Doctor roster (id + name only) for building a doctor picker when booking an
+ * appointment. Deliberately not the same endpoint as listUsers: appointments.manage (Admin has
+ * it) is a much lower bar than users.manage (Management only), and this exposes far less than
+ * PUBLIC_COLUMNS — no email, contact number, or account status.
+ */
+async function listActiveDoctors() {
+  return db('users')
+    .join('roles', 'roles.id', 'users.role_id')
+    .where({ 'roles.name': 'Doctor', 'users.is_active': true })
+    .select('users.id', 'users.full_name')
+    .orderBy('users.full_name');
+}
+
 async function getUser(id) {
   const user = await db('users').join('roles', 'roles.id', 'users.role_id').where({ 'users.id': id }).select(PUBLIC_COLUMNS).first();
   if (!user) {
@@ -78,4 +92,4 @@ async function setActive({ id, isActive, actingUserId, ipAddress }) {
   return getUser(id);
 }
 
-module.exports = { listUsers, getUser, createUser, setActive };
+module.exports = { listUsers, listActiveDoctors, getUser, createUser, setActive };
