@@ -10,6 +10,7 @@ const permissionsRoutes = require('./modules/permissions/permissions.routes');
 const patientsRoutes = require('./modules/patients/patients.routes');
 const animalBiteRoutes = require('./modules/animal-bite/animalBite.routes');
 const consultationsRoutes = require('./modules/consultations/consultations.routes');
+const appointmentsRoutes = require('./modules/appointments/appointments.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/patients', patientsRoutes);
 // mounted at /api rather than a single fixed prefix (see animalBite.routes.js).
 app.use('/api', animalBiteRoutes);
 app.use('/api', consultationsRoutes);
+app.use('/api/appointments', appointmentsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
