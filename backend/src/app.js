@@ -73,6 +73,11 @@ app.use('/api/patients', patientsRoutes);
 // already avoided this by being registered early too.
 app.use('/api/patient-auth', patientAuthRoutes);
 app.use('/api/patient', patientPortalRoutes);
+// Same reasoning as patient-auth/patient above: GET /api/reminders/cron (Vercel Cron's daily
+// trigger, gated by requireCronSecret, not a staff login) needs to be registered before the
+// bare-/api mounts below, or their unconditional requireAuth intercepts it first and 401s it
+// before it ever reaches reminders.routes.js's own, more specific handling.
+app.use('/api/reminders', remindersRoutes);
 // Mixes /api/animal-bite-records/* and /api/patients/:patientId/animal-bite-records —
 // mounted at /api rather than a single fixed prefix (see animalBite.routes.js).
 app.use('/api', animalBiteRoutes);
@@ -84,7 +89,6 @@ app.use('/api/services', servicesRoutes);
 app.use('/api', billingRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/scheduling', schedulingRoutes);
-app.use('/api/reminders', remindersRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/audit-logs', auditRoutes);

@@ -36,6 +36,10 @@ module.exports = {
     maxAttempts: parseInt(process.env.LOGIN_MAX_ATTEMPTS, 10) || 5,
     lockoutMinutes: parseInt(process.env.LOGIN_LOCKOUT_MINUTES, 10) || 15,
   },
+  // Shared secret for Vercel Cron's daily call to GET /api/reminders/cron — that endpoint has
+  // no staff login to check (a cron trigger isn't a logged-in user), so it's gated by this
+  // instead. See middleware/cronAuth.middleware.js.
+  cronSecret: process.env.CRON_SECRET,
   // Comma-separated list of allowed origins for the two frontends (staff SPA + patient
   // portal). Defaults cover local dev (frontend on 5173, patient-portal on 5174) plus the
   // two Vercel URLs from this project's first deploy — override via CORS_ORIGINS once a

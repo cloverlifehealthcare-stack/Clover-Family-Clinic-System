@@ -6,6 +6,7 @@ process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || 'test-access-se
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret';
 process.env.PATIENT_JWT_ACCESS_SECRET = process.env.PATIENT_JWT_ACCESS_SECRET || 'test-patient-access-secret';
 process.env.PATIENT_JWT_REFRESH_SECRET = process.env.PATIENT_JWT_REFRESH_SECRET || 'test-patient-refresh-secret';
+process.env.CRON_SECRET = process.env.CRON_SECRET || 'test-cron-secret';
 // Forced, not defaulted: tests/auth.test.js asserts against this exact number, so it must
 // never silently inherit whatever LOGIN_MAX_ATTEMPTS happens to be set to elsewhere (e.g.
 // backend/.env's development value) via process env inheritance from Jest's main process.

@@ -157,3 +157,25 @@ describe('permissions', () => {
     expect(listRes.status).toBe(200);
   });
 });
+
+describe('GET /api/reminders/cron', () => {
+  it('runs the job with a valid cron secret, and rejects a missing/wrong one — no staff login involved either way', async () => {
+    const noAuth = await request(app).get('/api/reminders/cron');
+    expect(noAuth.status).toBe(401);
+
+    const wrongSecret = await request(app).get('/api/reminders/cron').set('Authorization', 'Bearer not-the-real-secret');
+    expect(wrongSecret.status).toBe(401);
+
+    const correct = await request(app).get('/api/reminders/cron').set('Authorization', `Bearer ${process.env.CRON_SECRET}`);
+    expect(correct.status).toBe(200);
+    expect(correct.body).toHaveProperty('sent');
+    expect(correct.body).toHaveProperty('skipped');
+    expect(correct.body).toHaveProperty('failed');
+  });
+
+  it('rejects a staff login token — the cron route only accepts the cron secret', async () => {
+    const mgmt = await loginAs('Management');
+    const res = await request(app).get('/api/reminders/cron').set('Authorization', `Bearer ${mgmt}`);
+    expect(res.status).toBe(401);
+  });
+});
