@@ -34,7 +34,16 @@ live under a separate `reports.view` permission — Management and Admin both ge
 unlike `financial.view`/`financial.manage`, which stay Management-only per §3.2's rule that a
 staff member (Admin included) can't see profit reports without an individual override.
 
-See [`backend/README.md`](backend/README.md) (111 tests) and
+**Phase 4 is underway — the Full Audit Log UI is done.** Per §2, Phase 4 also includes a Patient
+Portal (deliberately a separate public-facing frontend app, not part of this staff SPA — new
+auth flow, new security posture) and Advanced Reports/Backup (the backup half is a hosting
+decision requiring real cloud infrastructure, not something buildable without your provider
+account). The Audit Log UI was picked first as the contained, lowest-risk piece: the underlying
+`audit_logs` data has been captured since Phase 1 (§1.4); this only adds the read side — search,
+filter, and CSV export — on top of it, gated by the existing `audit.view` permission with the
+same Management-sees-everything / Admin-sees-only-their-own-actions split §3.2 already specified.
+
+See [`backend/README.md`](backend/README.md) (116 tests) and
 [`frontend/README.md`](frontend/README.md) for what was actually run and what each module's
 browser verification covered. Real bugs and gaps were found and fixed throughout, not just
 theoretical risks — both READMEs list them: an env-var leak in the test harness, a Postgres

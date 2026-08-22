@@ -31,6 +31,7 @@ import { SchedulingPage } from './pages/scheduling/SchedulingPage';
 import { RemindersPage } from './pages/reminders/RemindersPage';
 import { FinancialPage } from './pages/financial/FinancialPage';
 import { DailyActivityReportPage } from './pages/reports/DailyActivityReportPage';
+import { AuditLogPage } from './pages/audit/AuditLogPage';
 
 export default function App() {
   return (
@@ -251,6 +252,14 @@ export default function App() {
             element={
               <ProtectedRoute permission="reports.view">
                 <DailyActivityReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="audit-log"
+            element={
+              <ProtectedRoute permission="audit.view">
+                <AuditLogPage />
               </ProtectedRoute>
             }
           />

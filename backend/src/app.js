@@ -18,6 +18,7 @@ const schedulingRoutes = require('./modules/scheduling/scheduling.routes');
 const remindersRoutes = require('./modules/reminders/reminders.routes');
 const financialRoutes = require('./modules/financial/financial.routes');
 const reportsRoutes = require('./modules/reports/reports.routes');
+const auditRoutes = require('./modules/audit/audit.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -56,6 +57,7 @@ app.use('/api/scheduling', schedulingRoutes);
 app.use('/api/reminders', remindersRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/audit-logs', auditRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

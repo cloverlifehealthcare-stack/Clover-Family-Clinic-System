@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/reminders', label: 'Reminders', permission: 'reminders.view' },
   { to: '/reports', label: 'Daily Activity', permission: 'reports.view' },
   { to: '/financial', label: 'Financial', permission: 'financial.view' },
+  { to: '/audit-log', label: 'Audit Log', permission: 'audit.view' },
   { to: '/users', label: 'Staff Accounts', permission: 'users.manage' },
 ];
 

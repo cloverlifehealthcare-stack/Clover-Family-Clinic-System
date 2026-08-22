@@ -58,6 +58,19 @@ async function rawRequest(path, options) {
   return { res, data };
 }
 
+/** Same request shape as rawRequest, but for a non-JSON (e.g. CSV) response body. */
+async function rawTextRequest(path, options) {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+      ...options.headers,
+    },
+  });
+  const text = await res.text();
+  return { res, text };
+}
+
 async function tryRefresh() {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
@@ -108,6 +121,28 @@ export async function apiRequest(path, options = {}) {
 /** Never throws — returns {status, data} so the caller can handle specific status codes. */
 export async function apiRequestRaw(path, options = {}) {
   return requestWithAuth(path, options);
+}
+
+/** Same as apiRequest, but for an endpoint that returns a non-JSON (e.g. CSV) body. */
+export async function apiRequestText(path, options = {}) {
+  let { res, text } = await rawTextRequest(path, options);
+
+  if (res.status === 401 && getRefreshToken()) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      ({ res, text } = await rawTextRequest(path, options));
+    }
+  }
+
+  if (res.status === 401) {
+    clearTokens();
+    onSessionExpired();
+  }
+
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`Request failed with status ${res.status}`);
+  }
+  return text;
 }
 
 export const api = {

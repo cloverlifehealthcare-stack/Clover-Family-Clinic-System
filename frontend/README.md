@@ -3,16 +3,19 @@
 React + Vite. **All six Phase 1 modules have screens**: Auth & RBAC, Patients, Animal Bite
 Center, Consultations, Appointments, and Billing. **All three Phase 2 modules are done too**:
 Inventory, Staff Scheduling & Attendance, and Follow-up Reminders. **So are both Phase 3
-modules**: Financial Management and Daily Activity Reports — see `../backend/README.md` for why
-Phase 2/3's design isn't documented up front the way Phase 1's was.
+modules**: Financial Management and Daily Activity Reports. **The first Phase 4 module — the
+Full Audit Log UI — is done too**; the other two (Patient Portal, Advanced Reports/Backup)
+aren't started — see `../backend/README.md` for why Phase 2–4's design isn't documented up
+front the way Phase 1's was, and for why those two are out of scope for now.
 
 **Verified in a real browser against the live API**, not just built:
 
-- Logged in as the seeded Management account (all 12 nav items show); created a Nurse account via
+- Logged in as the seeded Management account (all 13 nav items show); created a Nurse account via
   the API, confirmed via `GET /api/auth/me` exactly which permissions they hold, and confirmed
   their nav shows only the 7 items those permissions actually cover — Dashboard, Patients, Animal
   Bite Center, Consultations, Appointments, Inventory, Scheduling (no Billing, no Reminders, no
-  Daily Activity, no Financial, no Staff Accounts); confirmed logout returns to `/login`; confirmed
+  Daily Activity, no Financial, no Audit Log, no Staff Accounts); confirmed logout returns to
+  `/login`; confirmed
   navigating a Nurse directly to `/billing` by URL — not just hiding the link — renders "Access
   denied" rather than the page, since the API would reject it anyway (§1.1: the client never
   decides what's allowed, it only reflects what the server already permitted).
@@ -90,6 +93,16 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   `newPatients`, and confirmed it deliberately carries no revenue/profit figures anywhere in the
   response — that stays under Financial Management, which is gated more narrowly. Also confirmed
   an out-of-range past date correctly returns all-zero counts rather than erroring.
+- Full Audit Log UI (Phase 4): as Management, filtered by Action containing "void" against real
+  data generated via the API (a patient, statement, payment, then a payment void) and confirmed
+  exactly the `payment.void` row showed, with the correct entity type, entity ID, and IP address;
+  clicked Export CSV and confirmed a real file downloaded via the browser's blob-URL mechanism
+  (not a plain link, since the response needs an Authorization header). Caught one real backend
+  bug here, not just a frontend issue: the Entity Type filter dropdown initially showed "user"
+  four times — a duplicate-key React warning surfaced it, traced to the backend's distinct-values
+  query, fixed and verified in the same pass (see backend README for the actual bug). Confirmed a
+  Cashier (no `audit.view`) sees no Audit Log nav link and gets "Access denied" navigating there
+  directly by URL.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`

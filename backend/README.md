@@ -1,21 +1,23 @@
-# Clover Clinic API — Phase 1 + Phase 2 + Phase 3 complete
+# Clover Clinic API — Phase 1 + Phase 2 + Phase 3 complete, Phase 4 underway
 
 Implements all six Phase 1 modules from `docs/clover-architecture.md` §7's build order:
 auth/roles/permissions, patients, Animal Bite Center, Medical Consultation, appointments, and
-billing. Phase 2 and Phase 3 (§2: inventory, staff scheduling, follow-up reminders, financial
-management, daily activity reports) have no detailed schema in the architecture doc the way
-Phase 1 did — each module's design is worked out inline as it's built, flagged clearly below and
-in code comments, the same way undocumented Phase 1 details (e.g. the follow-up permission
-mapping) were resolved throughout. **All three Phase 2 modules — Inventory, Staff Scheduling &
-Attendance, and Follow-up Reminders — and both Phase 3 modules — Financial Management and Daily
-Activity Reports — are done.** Reminders send through a pluggable stub provider (logs instead of
-actually sending) since real Globe/Gmail credentials don't exist yet — see below.
+billing. Phase 2, 3, and 4 (§2: inventory, staff scheduling, follow-up reminders, financial
+management, daily activity reports, full audit log UI) have no detailed schema in the
+architecture doc the way Phase 1 did — each module's design is worked out inline as it's built,
+flagged clearly below and in code comments, the same way undocumented Phase 1 details (e.g. the
+follow-up permission mapping) were resolved throughout. **All three Phase 2 modules — Inventory,
+Staff Scheduling & Attendance, and Follow-up Reminders — both Phase 3 modules — Financial
+Management and Daily Activity Reports — and the first Phase 4 module — the Full Audit Log UI —
+are done.** Reminders send through a pluggable stub provider (logs instead of actually sending)
+since real Globe/Gmail credentials don't exist yet — see below. Phase 4's other two pieces
+(Patient Portal, Advanced Reports/Backup) aren't started — see "Known gaps" for why.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
 round-trips (login, patient, animal-bite, consultation, appointment booking + double-booking
 rejection, billing statement + PWD/Senior discount + payment to "paid") work over HTTP, and the
-full test suite (111 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
+full test suite (116 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
 theoretical risks — see git log: `e48a077` (an env-var leak between Jest's setup process and its
 test workers), the date type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a
 day off due to timezone conversion), a falsy-zero bug where dose 0 — the actual first rabies
@@ -159,6 +161,21 @@ exists in `tests/billing.test.js`).
   comment at the top of `reports.service.js` for the reasoning kept in one place.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
   permission override write an `audit_logs` row, per the architecture doc's §1.4 security baseline.
+- **Full Audit Log UI** (Phase 4, no doc spec beyond §2's one-line name): `GET /api/audit-logs`
+  (filters: `startDate`/`endDate`, `action` — case-insensitive substring match, `entityType`,
+  `userId`; capped at 1000 rows, 200 by default), `GET /api/audit-logs/entity-types` (distinct
+  entity types, for populating the filter dropdown), `GET /api/audit-logs/export` (same filters,
+  CSV, capped at 10,000 rows). This is the read side only — the write side (`auditLog.service.js`)
+  has existed since Phase 1. All three gated by `audit.view`, with row-scoping that's a role
+  check, not a separate permission (both Management and Admin hold the same `audit.view` code):
+  Management sees every entry, Admin sees only entries where they were the acting user, per §3.2's
+  "👁 own actions only." Found and fixed one real bug building this: `listEntityTypes`'s first
+  version reused the main list query's full `SELECT audit_logs.*, users.full_name` and appended
+  `.distinct('entity_type')` on top instead of replacing it, so the query deduped on every column
+  — meaning it didn't dedupe entity_type at all. Automated tests didn't catch it (the assertion
+  only checked `toContain('user')`, which passes whether or not duplicates exist); a live browser
+  smoke test did (the dropdown visibly showed `user` four times). Fixed with `.clearSelect()` +
+  `.clearOrder()` before applying `.distinct()`, and a regression test now asserts uniqueness.
 
 ## Running it locally
 
@@ -227,3 +244,12 @@ available from `requireAuth` for that filtering.
   if that becomes a real problem.
 - `cors()` currently allows any origin. Fine for local development; before staging/production,
   lock it to the actual frontend origin(s) (`cors({ origin: [...] })`) once that URL is known.
+- Phase 4's other two modules aren't built: **Patient Portal** is deliberately a separate
+  frontend app per §1.3 (its own patient self-registration/login, a public-facing security
+  posture very different from staff auth) — a second frontend project to stand up, not an
+  addition to this API's existing route structure, though it would reuse `patients`/
+  `appointments` underneath. **Advanced Reports/Backup**'s backup half is a hosting decision
+  (managed Postgres with automated daily backups, §1.3) that needs a real cloud provider account
+  — nothing to build in this repo until that account exists; the "advanced reports" half is
+  open-ended without a specific spec of which reports beyond what Financial Management and Daily
+  Activity Reports already cover.
