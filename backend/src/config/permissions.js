@@ -33,6 +33,15 @@ const PERMISSIONS = [
   { code: 'financial.view', module: 'billing', description: 'View profit / expense / financial reports' },
 
   { code: 'audit.view', module: 'audit', description: 'View audit log entries' },
+
+  // Phase 2. Not part of the original §3.2 matrix (that only covered Phase 1 modules) — role
+  // defaults below are a reasonable inferred split, not a documented business rule: Management/
+  // Admin/Nurse can adjust stock (receive batches, log corrections/wastage), matching who
+  // physically handles supplies in a small clinic; Doctor gets view-only (useful to check RIG/
+  // vaccine availability before committing to a treatment decision); Cashier has no reason to
+  // touch inventory. Flag if this doesn't match how the clinic actually wants it split.
+  { code: 'inventory.view', module: 'inventory', description: 'View stock levels, batches, and expiration/reorder alerts' },
+  { code: 'inventory.adjust', module: 'inventory', description: 'Receive stock, and record corrections/spoilage/wastage' },
 ];
 
 module.exports = { PERMISSIONS };

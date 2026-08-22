@@ -14,6 +14,9 @@ exports.seed = async function seed(knex) {
   await knex('consultations').del(); // references patients + users
   await knex('abc_rig_administrations').del(); // references animal_bite_records + users
   await knex('abc_treatment_doses').del(); // references animal_bite_records + users
+  await knex('inventory_adjustments').del(); // references inventory_batches + users
+  await knex('inventory_batches').del(); // references inventory_items + users
+  await knex('inventory_items').del();
   await knex('follow_ups').del(); // references patients + users
   await knex('patient_education_logs').del(); // references patients + users
   await knex('animal_bite_records').del(); // references patients + users

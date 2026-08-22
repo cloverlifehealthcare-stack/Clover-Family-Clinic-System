@@ -1,6 +1,7 @@
 const db = require('../../db/knex');
 const auditLog = require('../../services/auditLog.service');
 const ApiError = require('../../utils/ApiError');
+const inventoryService = require('../inventory/inventory.service');
 
 const VALID_CATEGORIES = ['I', 'II', 'III'];
 
@@ -110,8 +111,34 @@ async function promoteToInTreatment(id) {
   await db('animal_bite_records').where({ id, status: 'assessed' }).update({ status: 'in_treatment' });
 }
 
+/**
+ * Phase 2: when a dose/RIG administration references a tracked inventory_batch_id, the
+ * batch's own batch_lot_number is used unless the caller explicitly overrides it, so the
+ * printed/free-text field stays consistent with what was actually decremented. Returns the
+ * lot number to store; the caller decrements the batch separately, after its own insert
+ * succeeds (see the comment on consumeFromBatch in inventory.service.js — this codebase
+ * doesn't wrap multi-step writes in DB transactions anywhere, so this ordering, not a
+ * transaction, is what keeps a duplicate-dose conflict from having already decremented stock).
+ */
+async function resolveBatchLotNumber(inventoryBatchId, explicitBatchLotNumber) {
+  if (explicitBatchLotNumber) {
+    return explicitBatchLotNumber;
+  }
+  if (!inventoryBatchId) {
+    return null;
+  }
+  const batch = await db('inventory_batches').where({ id: inventoryBatchId }).first();
+  if (!batch) {
+    throw new ApiError(404, 'Inventory batch not found.');
+  }
+  return batch.batch_lot_number;
+}
+
 async function addDose(id, input) {
-  const { doseNumber, vaccineName, batchLotNumber, doseAmount, anatomicalSite, scheduledDate, administerNow, administeredBy, ipAddress } = input;
+  const {
+    doseNumber, vaccineName, batchLotNumber, inventoryBatchId, doseAmount, anatomicalSite,
+    scheduledDate, administerNow, administeredBy, ipAddress,
+  } = input;
 
   const record = await getRecord(id);
   await ensureDiagnosed(record);
@@ -127,13 +154,15 @@ async function addDose(id, input) {
   }
 
   const isAdministeredNow = administerNow || !scheduledDate;
+  const resolvedBatchLotNumber = await resolveBatchLotNumber(inventoryBatchId, batchLotNumber);
 
   const [created] = await db('abc_treatment_doses')
     .insert({
       animal_bite_record_id: id,
       dose_number: doseNumber,
       vaccine_name: vaccineName,
-      batch_lot_number: batchLotNumber || null,
+      batch_lot_number: resolvedBatchLotNumber,
+      inventory_batch_id: inventoryBatchId || null,
       dose_amount: doseAmount || null,
       anatomical_site: anatomicalSite || null,
       scheduled_date: scheduledDate || null,
@@ -151,6 +180,9 @@ async function addDose(id, input) {
 
   if (isAdministeredNow) {
     await promoteToInTreatment(id);
+    if (inventoryBatchId) {
+      await inventoryService.consumeFromBatch(inventoryBatchId, 1);
+    }
   }
 
   await auditLog.write({
@@ -166,7 +198,7 @@ async function addDose(id, input) {
 }
 
 async function administerDose(id, doseId, input) {
-  const { batchLotNumber, doseAmount, anatomicalSite, administeredBy, ipAddress } = input;
+  const { batchLotNumber, inventoryBatchId, doseAmount, anatomicalSite, administeredBy, ipAddress } = input;
 
   const dose = await db('abc_treatment_doses').where({ id: doseId, animal_bite_record_id: id }).first();
   if (!dose) {
@@ -176,16 +208,26 @@ async function administerDose(id, doseId, input) {
     throw new ApiError(400, `Dose is already ${dose.status}, cannot administer.`);
   }
 
+  // A batch may already have been chosen when this dose was scheduled (addDose), or only now,
+  // at the point of actually administering it — either way, stock is consumed exactly once,
+  // here, since scheduling alone never consumes stock.
+  const resolvedInventoryBatchId = inventoryBatchId || dose.inventory_batch_id;
+  const resolvedBatchLotNumber = await resolveBatchLotNumber(resolvedInventoryBatchId, batchLotNumber || dose.batch_lot_number);
+
   await db('abc_treatment_doses').where({ id: doseId }).update({
     status: 'administered',
     administered_by: administeredBy,
     administered_at: db.fn.now(),
-    ...(batchLotNumber ? { batch_lot_number: batchLotNumber } : {}),
+    batch_lot_number: resolvedBatchLotNumber,
+    inventory_batch_id: resolvedInventoryBatchId || null,
     ...(doseAmount ? { dose_amount: doseAmount } : {}),
     ...(anatomicalSite ? { anatomical_site: anatomicalSite } : {}),
   });
 
   await promoteToInTreatment(id);
+  if (resolvedInventoryBatchId) {
+    await inventoryService.consumeFromBatch(resolvedInventoryBatchId, 1);
+  }
 
   await auditLog.write({
     userId: administeredBy,
@@ -200,7 +242,10 @@ async function administerDose(id, doseId, input) {
 }
 
 async function addRig(id, input) {
-  const { rigProductName, batchLotNumber, patientWeightKg, calculatedDose, siteInfiltratedAmount, imInjectedAmount, administeredBy, ipAddress } = input;
+  const {
+    rigProductName, batchLotNumber, inventoryBatchId, patientWeightKg, calculatedDose,
+    siteInfiltratedAmount, imInjectedAmount, administeredBy, ipAddress,
+  } = input;
 
   const record = await getRecord(id);
   await ensureDiagnosed(record);
@@ -215,10 +260,13 @@ async function addRig(id, input) {
     throw new ApiError(400, 'rigProductName, patientWeightKg, and calculatedDose are required.');
   }
 
+  const resolvedBatchLotNumber = await resolveBatchLotNumber(inventoryBatchId, batchLotNumber);
+
   await db('abc_rig_administrations').insert({
     animal_bite_record_id: id,
     rig_product_name: rigProductName,
-    batch_lot_number: batchLotNumber || null,
+    batch_lot_number: resolvedBatchLotNumber,
+    inventory_batch_id: inventoryBatchId || null,
     patient_weight_kg: patientWeightKg,
     calculated_dose: calculatedDose,
     site_infiltrated_amount: siteInfiltratedAmount || null,
@@ -227,6 +275,12 @@ async function addRig(id, input) {
   });
 
   await promoteToInTreatment(id);
+  if (inventoryBatchId) {
+    // Consumes 1 unit of the batch (e.g. one vial) — RIG dosing is weight-based, but tracking
+    // partial-vial consumption is out of scope for Phase 2; this is a simplification, not a
+    // precise draw-down.
+    await inventoryService.consumeFromBatch(inventoryBatchId, 1);
+  }
 
   await auditLog.write({
     userId: administeredBy,

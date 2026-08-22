@@ -1,8 +1,12 @@
-# Clover Clinic API — Phase 1 complete
+# Clover Clinic API — Phase 1 complete + Phase 2 in progress
 
 Implements all six Phase 1 modules from `docs/clover-architecture.md` §7's build order:
 auth/roles/permissions, patients, Animal Bite Center, Medical Consultation, appointments, and
-billing.
+billing. Phase 2 (§2: inventory, follow-up reminders, staff scheduling) has no detailed schema in
+the architecture doc the way Phase 1 did — each Phase 2 module's design is worked out inline as
+it's built, flagged clearly below and in code comments, the same way undocumented Phase 1 details
+(e.g. the follow-up permission mapping) were resolved throughout. **Inventory** is done; follow-up
+reminders and staff scheduling aren't started yet.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
@@ -85,6 +89,20 @@ exists in `tests/billing.test.js`).
   `patient_first_name`/`patient_last_name`/`patient_code`/`doctor_name` — added after the
   frontend appointment form needed patient/doctor names, not bare IDs, matching how every other
   module already returns human-readable data.
+- **Inventory** (Phase 2, no doc spec — schema is an inferred extrapolation, see the migration
+  comments): `GET/POST /api/inventory` (items, with `totalRemaining`/`lowStock` computed across
+  batches), `GET /:id` (item + its batches), `PATCH /:id`, `POST /:id/batches` (receive stock),
+  `POST /batches/:batchId/adjustments` (correction/spoilage/expired, bounded to
+  `[0, quantity_received]` by both a DB CHECK constraint and an app-layer check that returns a
+  clean 400 instead of a raw constraint-violation 500), `GET /alerts` (low-stock items,
+  batches expiring within N days). Gated by two new permissions not in the original §3.2 matrix:
+  `inventory.view` and `inventory.adjust` — role defaults are a reasoned guess (Management/Admin/
+  Nurse can adjust, Doctor view-only, Cashier none), not a transcribed business rule; flag if
+  wrong. Optionally linked into Animal Bite dose/RIG administration: passing `inventoryBatchId`
+  auto-derives `batch_lot_number` from the batch and decrements its stock by 1 on administration
+  — fulfills the upgrade path the Phase 1 migrations' own comments already called out
+  ("free text in Phase 1; FK to Inventory in Phase 2"). Purely additive: the free-text
+  `batchLotNumber` field still works standalone for anyone not tracking a specific item yet.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
   permission override write an `audit_logs` row, per the architecture doc's §1.4 security baseline.
 
