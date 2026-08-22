@@ -11,7 +11,12 @@ function required(name) {
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 4000,
-  databaseUrl: process.env.DATABASE_URL,
+  // Falls back to POSTGRES_URL — the name Vercel's database integrations (Supabase, Neon,
+  // etc.) use automatically once a database is connected to a project. Those variables are
+  // marked "Sensitive" in the Vercel dashboard and can't be viewed/copied again after being
+  // set, so accepting the name Vercel already provides avoids ever needing to copy the value
+  // into a separately-named DATABASE_URL by hand.
+  databaseUrl: process.env.DATABASE_URL || process.env.POSTGRES_URL,
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,
