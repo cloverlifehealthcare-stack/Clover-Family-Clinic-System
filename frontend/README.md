@@ -1,11 +1,9 @@
 # Clover Clinic — Staff SPA
 
-React + Vite. Auth & RBAC foundation, Patients (list/search, create with duplicate-warn and
-minor/guardian handling, view, edit), Animal Bite Center (initial assessment, WHO Category I/II/III
-diagnosis, vaccine doses including dose 0, RIG for Category III, education, follow-ups,
-completion), and Consultations (initial assessment, diagnosis, multi-item prescriptions,
-education, follow-ups, completion). Appointments and billing have working, tested APIs in
-`../backend` but no screens here yet; their nav links go to a "coming soon" placeholder.
+React + Vite. Auth & RBAC foundation, Patients, Animal Bite Center, Consultations, and
+Appointments (book, check-in/complete/cancel/no-show, reschedule, double-booking rejection).
+Billing has a working, tested API in `../backend` but no screen here yet; its nav link goes to a
+"coming soon" placeholder.
 
 **Verified in a real browser against the live API**, not just built:
 
@@ -36,6 +34,17 @@ education, follow-ups, completion). Appointments and billing have working, teste
   then issued a two-medicine prescription — added a second row via "+ Add another medicine" and
   confirmed both items saved and displayed correctly — then logged education, scheduled and
   completed a follow-up, and marked the consultation complete.
+- Appointments: booked one via the `PatientSearchSelect` inline picker + the doctor dropdown
+  (confirmed correctly populated from the new `/api/users/doctors` endpoint — see backend log),
+  ran Check In → Complete and confirmed the action buttons update per status, confirmed the list
+  page shows patient/doctor names (not raw IDs — the other real backend gap found this session,
+  fixed in the same commit range), and confirmed double-booking the same doctor/date/time
+  surfaces the backend's 409 as a clear on-screen message rather than a silent failure.
+
+Two real backend gaps were found and fixed while building this module, not just frontend work —
+see the backend README and git log: Admin had no way to fetch the doctor list (only
+`users.manage`-gated endpoints existed) and appointment responses had bare `patient_id`/
+`doctor_id` with no names, unlike every other module.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`
@@ -88,6 +97,14 @@ npm run dev
   `PrescriptionsSection` supporting a dynamic list of medicine rows ("+ Add another medicine")
   submitted as one multi-item prescription; hidden until the consultation has a diagnosis,
   matching the backend's own requirement.
+- **`src/components/PatientSearchSelect.jsx`** — inline "type to search, click to select" patient
+  field for forms that need a `patientId` without leaving the page (booking an appointment),
+  unlike `PatientPicker`'s full-page landing.
+- **`src/pages/appointments/`** — `AppointmentsListPage` (date-filtered), `AppointmentCreatePage`
+  (patient search-select + doctor dropdown from `/api/users/doctors` + a generated 15-minute
+  time-slot `<select>`, 08:00–17:00), `AppointmentDetailPage` (status actions gated by the
+  current status per the backend's own transition rules, plus reschedule while still
+  `scheduled`).
 
 ## Known gaps
 

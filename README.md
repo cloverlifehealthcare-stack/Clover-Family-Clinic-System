@@ -9,13 +9,12 @@ schema, RBAC model, and Phase 1–4 module roadmap.
 consultations, appointments, billing) are built and verified in [`backend/`](backend/README.md)
 against a real database, with a 70-test suite.
 
-**Frontend has Auth & RBAC, Patients, Animal Bite Center, and Consultations** — login, session
-handling, a permission-gated shell, patient records (create/edit/duplicate-warn/minor-guardian),
-the full animal bite workflow (assessment → WHO diagnosis → doses/RIG → education/follow-up →
-completion), and the full consultation workflow (assessment → diagnosis → multi-item prescription
-→ education/follow-up → completion), verified in a real browser against the live API (see
-[`frontend/README.md`](frontend/README.md)). Screens for Appointments and Billing don't exist
-yet; their APIs are ready and waiting.
+**Frontend has everything except Billing** — Auth & RBAC, Patients, Animal Bite Center,
+Consultations, and Appointments (booking, doctor picker, check-in/complete/cancel/no-show,
+reschedule, double-booking rejection), all verified in a real browser against the live API (see
+[`frontend/README.md`](frontend/README.md)). Two real backend gaps were found and fixed while
+building Appointments: Admin couldn't fetch the doctor list, and appointment responses had no
+patient/doctor names. Only the Billing screen is left — its API is ready and waiting.
 
 ## Layout
 

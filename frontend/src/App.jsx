@@ -17,6 +17,9 @@ import { ConsultationsLandingPage } from './pages/consultations/ConsultationsLan
 import { PatientConsultationsPage } from './pages/consultations/PatientConsultationsPage';
 import { ConsultationCreatePage } from './pages/consultations/ConsultationCreatePage';
 import { ConsultationDetailPage } from './pages/consultations/ConsultationDetailPage';
+import { AppointmentsListPage } from './pages/appointments/AppointmentsListPage';
+import { AppointmentCreatePage } from './pages/appointments/AppointmentCreatePage';
+import { AppointmentDetailPage } from './pages/appointments/AppointmentDetailPage';
 
 export default function App() {
   return (
@@ -132,7 +135,23 @@ export default function App() {
             path="appointments"
             element={
               <ProtectedRoute permission="appointments.view">
-                <ComingSoonPage title="Appointments" />
+                <AppointmentsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="appointments/new"
+            element={
+              <ProtectedRoute permission="appointments.manage">
+                <AppointmentCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="appointments/:id"
+            element={
+              <ProtectedRoute permission="appointments.view">
+                <AppointmentDetailPage />
               </ProtectedRoute>
             }
           />
