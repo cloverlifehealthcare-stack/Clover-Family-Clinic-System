@@ -4,6 +4,9 @@
 // this breaks the same way it did when the patients table was added. Never run against
 // production data — this seed set is for standing up local/staging environments, not go-live.
 exports.seed = async function seed(knex) {
+  await knex('prescription_items').del(); // references prescriptions
+  await knex('prescriptions').del(); // references consultations + animal_bite_records + patients + users
+  await knex('consultations').del(); // references patients + users
   await knex('abc_rig_administrations').del(); // references animal_bite_records + users
   await knex('abc_treatment_doses').del(); // references animal_bite_records + users
   await knex('follow_ups').del(); // references patients + users

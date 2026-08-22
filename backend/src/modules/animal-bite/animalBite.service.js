@@ -66,12 +66,19 @@ async function createRecord(input) {
   return getRecord(created.id);
 }
 
-async function recordDiagnosis(id, { exposureCategory, doctorNotes, treatmentDecision, doctorId, ipAddress }) {
+async function recordDiagnosis(id, { exposureCategory, doctorNotes, treatmentDecision, doctorId, actingUserRole, ipAddress }) {
   if (!VALID_CATEGORIES.includes(exposureCategory)) {
     throw new ApiError(400, `exposureCategory must be one of: ${VALID_CATEGORIES.join(', ')}`);
   }
 
   const before = await getRecord(id);
+
+  // "Doctor ✅ own patients" (§3.2): once a doctor has diagnosed this record, only that same
+  // doctor (or Management, who has unrestricted ✅) may revise it — not a different doctor.
+  // Before any diagnosis exists, any doctor may record it (self-assigning as doctor_id).
+  if (actingUserRole === 'Doctor' && before.doctor_id !== null && before.doctor_id !== doctorId) {
+    throw new ApiError(403, 'Only the doctor who diagnosed this record may revise the diagnosis.');
+  }
 
   await db('animal_bite_records').where({ id }).update({
     exposure_category: exposureCategory,

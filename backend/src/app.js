@@ -9,6 +9,7 @@ const usersRoutes = require('./modules/users/users.routes');
 const permissionsRoutes = require('./modules/permissions/permissions.routes');
 const patientsRoutes = require('./modules/patients/patients.routes');
 const animalBiteRoutes = require('./modules/animal-bite/animalBite.routes');
+const consultationsRoutes = require('./modules/consultations/consultations.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -36,6 +37,7 @@ app.use('/api/patients', patientsRoutes);
 // Mixes /api/animal-bite-records/* and /api/patients/:patientId/animal-bite-records —
 // mounted at /api rather than a single fixed prefix (see animalBite.routes.js).
 app.use('/api', animalBiteRoutes);
+app.use('/api', consultationsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

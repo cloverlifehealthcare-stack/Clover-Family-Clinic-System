@@ -1,17 +1,19 @@
-# Clover Clinic API — Auth & RBAC, Patients, Animal Bite Center
+# Clover Clinic API — Auth & RBAC, Patients, Animal Bite Center, Consultations
 
-Implements the first three modules in `docs/clover-architecture.md` §7's build order: auth/roles/
-permissions, patient registration & records, and the Animal Bite Center workflow. Medical
-consultation, appointments, and billing aren't built yet.
+Implements the first four modules in `docs/clover-architecture.md` §7's build order: auth/roles/
+permissions, patient registration & records, Animal Bite Center, and Medical Consultation.
+Appointments and billing aren't built yet.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
-login/patient/animal-bite round-trips work over HTTP, and the full test suite (37 tests) plus lint
-pass. Real bugs were caught and fixed along the way, not just theoretical risks — see git log:
-`e48a077` (an env-var leak between Jest's setup process and its test workers), the date
-type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a day off due to timezone
-conversion), and a falsy-zero bug where dose 0 — the actual first rabies vaccine dose — was
-rejected by an `if (!doseNumber)` check.
+login/patient/animal-bite/consultation round-trips work over HTTP, and the full test suite (46
+tests) plus lint pass. Real bugs were caught and fixed along the way, not just theoretical risks —
+see git log: `e48a077` (an env-var leak between Jest's setup process and its test workers), the
+date type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a day off due to
+timezone conversion), a falsy-zero bug where dose 0 — the actual first rabies vaccine dose — was
+rejected by an `if (!doseNumber)` check, and a missing "own patients" enforcement gap on animal
+bite diagnosis (any doctor could overwrite another doctor's diagnosis) found while building the
+same rule correctly into consultations — see the "own patients" commit for both fixes.
 
 ## What's here
 
@@ -44,7 +46,15 @@ rejected by an `if (!doseNumber)` check.
   record requires `patients.history.view` (no separate permission exists for it in the §3.2
   matrix — it's part of that patient's medical history); follow-up scheduling is gated by
   `animalbite.treatment.administer` for the same reason (see code comment in
-  `animalBite.routes.js` — no dedicated permission exists for it either).
+  `animalBite.routes.js` — no dedicated permission exists for it either). Diagnosis is
+  restricted to the diagnosing doctor (or Management) once set — "own patients" per §3.2.
+- **Medical Consultation**: `POST /api/consultations` (initial assessment), `PATCH /:id/diagnosis`
+  (own-patients enforced, same as animal bite), `POST /:id/prescriptions` (also own-patients
+  enforced — requires a diagnosis first), `POST /:id/education`, `POST /:id/follow-ups` +
+  `PATCH /:id/follow-ups/:followUpId` (gated by `education.record`, the closest analogous
+  permission — no dedicated one exists), `POST /:id/complete`. Referral notes go in the
+  `remarks` field — the doc's schema has no dedicated referral column, so this follows it
+  exactly rather than adding one.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
   permission override write an `audit_logs` row, per the architecture doc's §1.4 security baseline.
 

@@ -31,6 +31,7 @@ const recordDiagnosis = asyncHandler(async (req, res) => {
   const record = await animalBiteService.recordDiagnosis(req.params.id, {
     ...req.body,
     doctorId: req.user.id,
+    actingUserRole: req.user.roleName,
     ipAddress: req.ip,
   });
   res.json(record);

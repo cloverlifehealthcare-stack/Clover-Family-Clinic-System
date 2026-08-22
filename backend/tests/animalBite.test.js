@@ -203,6 +203,43 @@ describe('WHO Category I — no vaccination indicated', () => {
   });
 });
 
+describe('"own patients" enforcement on diagnosis', () => {
+  it('blocks a different doctor from revising an existing diagnosis, but the same doctor and Management can', async () => {
+    const mgmt = await loginAs('Management');
+    const patientId = await createPatient(mgmt);
+    const nurse = await loginAs('Nurse');
+    const doctorA = await loginAs('Doctor');
+    const doctorB = await loginAs('Doctor');
+
+    const created = await createBiteRecord(nurse, patientId);
+    const recordId = created.body.id;
+
+    const first = await request(app)
+      .patch(`/api/animal-bite-records/${recordId}/diagnosis`)
+      .set('Authorization', `Bearer ${doctorA}`)
+      .send({ exposureCategory: 'II', treatmentDecision: 'PEP only' });
+    expect(first.status).toBe(200);
+
+    const blocked = await request(app)
+      .patch(`/api/animal-bite-records/${recordId}/diagnosis`)
+      .set('Authorization', `Bearer ${doctorB}`)
+      .send({ exposureCategory: 'III', treatmentDecision: 'PEP + RIG' });
+    expect(blocked.status).toBe(403);
+
+    const sameDoctor = await request(app)
+      .patch(`/api/animal-bite-records/${recordId}/diagnosis`)
+      .set('Authorization', `Bearer ${doctorA}`)
+      .send({ exposureCategory: 'III', treatmentDecision: 'Revised: PEP + RIG' });
+    expect(sameDoctor.status).toBe(200);
+
+    const managementOverride = await request(app)
+      .patch(`/api/animal-bite-records/${recordId}/diagnosis`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ exposureCategory: 'II', treatmentDecision: 'Management correction' });
+    expect(managementOverride.status).toBe(200);
+  });
+});
+
 describe('field-visibility RBAC on GET', () => {
   it('Cashier cannot view a record (no patients.history.view)', async () => {
     const mgmt = await loginAs('Management');
