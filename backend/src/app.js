@@ -8,6 +8,7 @@ const authRoutes = require('./modules/auth/auth.routes');
 const usersRoutes = require('./modules/users/users.routes');
 const permissionsRoutes = require('./modules/permissions/permissions.routes');
 const patientsRoutes = require('./modules/patients/patients.routes');
+const animalBiteRoutes = require('./modules/animal-bite/animalBite.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -32,6 +33,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/permissions', permissionsRoutes);
 app.use('/api/patients', patientsRoutes);
+// Mixes /api/animal-bite-records/* and /api/patients/:patientId/animal-bite-records —
+// mounted at /api rather than a single fixed prefix (see animalBite.routes.js).
+app.use('/api', animalBiteRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
