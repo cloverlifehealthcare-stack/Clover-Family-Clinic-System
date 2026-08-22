@@ -9,10 +9,10 @@ schema, RBAC model, and Phase 1–4 module roadmap.
 consultations, appointments, billing) are built and verified in [`backend/`](backend/README.md)
 against a real database, with a 70-test suite.
 
-**Frontend has its Auth & RBAC foundation** — login, session handling, and a permission-gated
-shell, verified in a real browser against the live API (see
-[`frontend/README.md`](frontend/README.md)). Screens for the other five modules don't exist yet;
-their APIs are ready and waiting.
+**Frontend has Auth & RBAC plus Patients** — login, session handling, a permission-gated shell,
+and a full Patients module (list/search/create/edit, duplicate-warn, minor/guardian handling),
+verified in a real browser against the live API (see [`frontend/README.md`](frontend/README.md)).
+Screens for the other four modules don't exist yet; their APIs are ready and waiting.
 
 ## Layout
 

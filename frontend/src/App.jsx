@@ -5,6 +5,10 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { AppShell } from './layout/AppShell';
 import { DashboardPage } from './pages/DashboardPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
+import { PatientsListPage } from './pages/patients/PatientsListPage';
+import { PatientCreatePage } from './pages/patients/PatientCreatePage';
+import { PatientDetailPage } from './pages/patients/PatientDetailPage';
+import { PatientEditPage } from './pages/patients/PatientEditPage';
 
 export default function App() {
   return (
@@ -24,7 +28,31 @@ export default function App() {
             path="patients"
             element={
               <ProtectedRoute permission="patients.view">
-                <ComingSoonPage title="Patients" />
+                <PatientsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/new"
+            element={
+              <ProtectedRoute permission="patients.create">
+                <PatientCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:id"
+            element={
+              <ProtectedRoute permission="patients.view">
+                <PatientDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:id/edit"
+            element={
+              <ProtectedRoute permission="patients.edit">
+                <PatientEditPage />
               </ProtectedRoute>
             }
           />

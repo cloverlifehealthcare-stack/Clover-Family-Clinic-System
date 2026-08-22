@@ -1,17 +1,32 @@
 # Clover Clinic — Staff SPA
 
-React + Vite. Auth & RBAC foundation only — login, session handling, and a permission-gated
-shell. Every other module (patients, animal bite, consultations, appointments, billing) has a
-working, tested API in `../backend` but no screen here yet; their nav links go to a "coming soon"
-placeholder.
+React + Vite. Auth & RBAC foundation, plus a working Patients module (list/search, create with
+duplicate-warn and minor/guardian handling, view, edit). The remaining four modules (animal bite,
+consultations, appointments, billing) have working, tested APIs in `../backend` but no screens
+here yet; their nav links go to a "coming soon" placeholder.
 
-**Verified in a real browser against the live API**, not just built: logged in as the seeded
-Management account and confirmed all 7 nav items show; created a Nurse account and confirmed
-their nav shows only the 5 items their permissions actually cover (no Billing, no Staff
-Accounts); confirmed logout returns to `/login`; confirmed navigating a Nurse directly to
-`/billing` by URL — not just hiding the link — renders "Access denied" rather than the page,
-since the API would reject it anyway (§1.1: the client never decides what's allowed, it only
-reflects what the server already permitted).
+**Verified in a real browser against the live API**, not just built:
+
+- Logged in as the seeded Management account (all 7 nav items show); created a Nurse account via
+  the API and confirmed their nav shows only the 5 items their permissions actually cover (no
+  Billing, no Staff Accounts); confirmed logout returns to `/login`; confirmed navigating a Nurse
+  directly to `/billing` by URL — not just hiding the link — renders "Access denied" rather than
+  the page, since the API would reject it anyway (§1.1: the client never decides what's allowed,
+  it only reflects what the server already permitted).
+- Patients: created an adult patient (code generated correctly, no guardian section shown);
+  created a minor and confirmed the guardian fields appear and are required, both client-side
+  (HTML5 `required`, blocked submission) and would be server-side regardless; re-submitted the
+  exact same adult patient and confirmed the duplicate-warning screen shows the existing match,
+  then confirmed "create anyway" actually creates a second record; edited a patient's contact
+  number and confirmed it saved; created a Cashier account and confirmed their view of a patient
+  shows only the basic/billing-relevant fields (no email, address, medical history, guardian
+  info, or Edit button) — the backend's field-level restriction reflected correctly in the UI.
+
+One real testing-tool quirk hit along the way, not an app bug: the browser automation's
+coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`
+directly via JS and seeing the expected network request fire immediately after). Worth knowing if
+a future click-based test seems to silently do nothing — try a direct DOM `.click()` to rule out
+the same thing before assuming the app is broken.
 
 ## Running it locally
 
@@ -39,6 +54,13 @@ npm run dev
   reject the request either way.
 - **`src/layout/AppShell.jsx`** — topbar + sidebar nav, filtered by `hasPermission()` per link.
   Nav item → permission code mapping lives in `NAV_ITEMS` at the top of that file.
+- **`src/pages/patients/`** — `PatientsListPage` (search), `PatientCreatePage` (handles the
+  backend's 409 "possible duplicate" response as an expected outcome, not an error — via
+  `apiRequestRaw` in `api/client.js`, which returns `{status, data}` instead of throwing),
+  `PatientDetailPage` (renders whichever fields the backend actually sent — Cashier's reduced
+  shape vs. the full record — rather than assuming a fixed field set), `PatientEditPage`. The
+  shared `PatientForm` shows/requires the guardian fields client-side via `utils/age.js`, mirroring
+  (not replacing) the backend's own minor check.
 
 ## Known gaps
 

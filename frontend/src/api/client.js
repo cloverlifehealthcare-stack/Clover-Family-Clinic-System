@@ -72,11 +72,13 @@ async function tryRefresh() {
 }
 
 /**
- * Core request helper: attaches the access token, and on a 401 attempts exactly one silent
- * refresh-and-retry before giving up and forcing a logout. Every module's API calls (patients,
- * appointments, ...) go through this so that logic only lives in one place.
+ * Attaches the access token, and on a 401 attempts exactly one silent refresh-and-retry
+ * before giving up and forcing a logout. Every module's API calls go through this (via
+ * apiRequest or apiRequestRaw below) so that logic only lives in one place. Does not throw
+ * on a non-2xx status — that's apiRequest's job — because some callers (e.g. patients.js
+ * handling a 409 "possible duplicate") need to inspect a specific non-2xx status themselves.
  */
-export async function apiRequest(path, options = {}) {
+async function requestWithAuth(path, options) {
   let { res, data } = await rawRequest(path, options);
 
   if (res.status === 401 && getRefreshToken()) {
@@ -91,12 +93,21 @@ export async function apiRequest(path, options = {}) {
     onSessionExpired();
   }
 
-  if (!res.ok) {
-    const message = (data && data.error) || `Request failed with status ${res.status}`;
-    throw new Error(message);
-  }
+  return { status: res.status, data };
+}
 
+/** Throws on a non-2xx status. Use for the common case where any failure is just an error. */
+export async function apiRequest(path, options = {}) {
+  const { status, data } = await requestWithAuth(path, options);
+  if (status < 200 || status >= 300) {
+    throw new Error((data && data.error) || `Request failed with status ${status}`);
+  }
   return data;
+}
+
+/** Never throws — returns {status, data} so the caller can handle specific status codes. */
+export async function apiRequestRaw(path, options = {}) {
+  return requestWithAuth(path, options);
 }
 
 export const api = {
