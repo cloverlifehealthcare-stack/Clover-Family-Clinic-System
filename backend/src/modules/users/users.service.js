@@ -27,6 +27,21 @@ async function listActiveDoctors() {
     .orderBy('users.full_name');
 }
 
+/**
+ * Minimal active-staff roster (id + name + role, no contact info or account status) for
+ * assigning a shift to any staff member, not just doctors. Same reasoning as
+ * listActiveDoctors above, gated by scheduling.manage instead — found the same way, while
+ * building the frontend's shift-assignment form and hitting the same "Admin has the
+ * permission to do this action but no permission to fetch who to do it to" gap.
+ */
+async function listActiveStaff() {
+  return db('users')
+    .join('roles', 'roles.id', 'users.role_id')
+    .where({ 'users.is_active': true })
+    .select('users.id', 'users.full_name', 'roles.name as role')
+    .orderBy('users.full_name');
+}
+
 async function getUser(id) {
   const user = await db('users').join('roles', 'roles.id', 'users.role_id').where({ 'users.id': id }).select(PUBLIC_COLUMNS).first();
   if (!user) {
@@ -92,4 +107,4 @@ async function setActive({ id, isActive, actingUserId, ipAddress }) {
   return getUser(id);
 }
 
-module.exports = { listUsers, listActiveDoctors, getUser, createUser, setActive };
+module.exports = { listUsers, listActiveDoctors, listActiveStaff, getUser, createUser, setActive };

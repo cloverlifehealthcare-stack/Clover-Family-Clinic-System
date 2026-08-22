@@ -10,6 +10,9 @@ const router = express.Router();
 // to build an appointment's doctor picker, without exposing the full staff roster or account
 // details users.manage guards. See the comment on users.service.js's listActiveDoctors.
 router.get('/doctors', requireAuth, requirePermission('appointments.manage'), usersController.listDoctors);
+// Same idea, for assigning a shift to any staff member (not just doctors): gated by
+// scheduling.manage instead. See the comment on users.service.js's listActiveStaff.
+router.get('/staff', requireAuth, requirePermission('scheduling.manage'), usersController.listStaff);
 
 // Every other route: Management only, per docs/clover-architecture.md §3.2
 // ("Manage user accounts" -> users.manage, Management-only by default).

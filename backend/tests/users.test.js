@@ -34,3 +34,25 @@ describe('GET /api/users/doctors', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('GET /api/users/staff', () => {
+  it('is reachable by Admin (has scheduling.manage, not users.manage) and returns id + full_name + role for any role', async () => {
+    const cashierToken = await loginAs('Cashier');
+    const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${cashierToken}`);
+
+    const admin = await loginAs('Admin');
+    const res = await request(app).get('/api/users/staff').set('Authorization', `Bearer ${admin}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.some((s) => s.id === me.body.id && s.role === 'Cashier')).toBe(true);
+    for (const staff of res.body) {
+      expect(Object.keys(staff).sort()).toEqual(['full_name', 'id', 'role']);
+    }
+  });
+
+  it('rejects a Nurse (no scheduling.manage by default)', async () => {
+    const nurse = await loginAs('Nurse');
+    const res = await request(app).get('/api/users/staff').set('Authorization', `Bearer ${nurse}`);
+    expect(res.status).toBe(403);
+  });
+});
