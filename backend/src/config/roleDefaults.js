@@ -13,6 +13,7 @@ const ROLE_DEFAULTS = {
     'audit.view',
     'inventory.view', 'inventory.adjust',
     'scheduling.view', 'scheduling.manage',
+    'reminders.view', 'reminders.manage',
   ],
   Admin: [
     'patients.create', 'patients.view', 'patients.history.view',
@@ -21,6 +22,7 @@ const ROLE_DEFAULTS = {
     'audit.view', // row-scoped to own actions only, enforced in the audit module's service layer
     'inventory.view', 'inventory.adjust',
     'scheduling.view', 'scheduling.manage',
+    'reminders.view', 'reminders.manage',
   ],
   Doctor: [
     'patients.view', 'patients.history.view',

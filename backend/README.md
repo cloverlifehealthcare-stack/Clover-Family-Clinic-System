@@ -1,19 +1,20 @@
-# Clover Clinic API — Phase 1 complete + Phase 2 in progress
+# Clover Clinic API — Phase 1 + Phase 2 complete
 
 Implements all six Phase 1 modules from `docs/clover-architecture.md` §7's build order:
 auth/roles/permissions, patients, Animal Bite Center, Medical Consultation, appointments, and
-billing. Phase 2 (§2: inventory, follow-up reminders, staff scheduling) has no detailed schema in
+billing. Phase 2 (§2: inventory, staff scheduling, follow-up reminders) has no detailed schema in
 the architecture doc the way Phase 1 did — each Phase 2 module's design is worked out inline as
 it's built, flagged clearly below and in code comments, the same way undocumented Phase 1 details
-(e.g. the follow-up permission mapping) were resolved throughout. **Inventory and Staff
-Scheduling & Attendance** are done; follow-up reminders aren't started yet (needs real Globe/
-Gmail credentials — will be built as a pluggable stub until those exist).
+(e.g. the follow-up permission mapping) were resolved throughout. **All three Phase 2 modules —
+Inventory, Staff Scheduling & Attendance, and Follow-up Reminders — are done.** Reminders send
+through a pluggable stub provider (logs instead of actually sending) since real Globe/Gmail
+credentials don't exist yet — see below.
 
 **Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
 this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, real
 round-trips (login, patient, animal-bite, consultation, appointment booking + double-booking
 rejection, billing statement + PWD/Senior discount + payment to "paid") work over HTTP, and the
-full test suite (70 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
+full test suite (103 tests) plus lint pass. Real bugs were caught and fixed along the way, not just
 theoretical risks — see git log: `e48a077` (an env-var leak between Jest's setup process and its
 test workers), the date type-parser fix in `src/db/knex.js` (Postgres DATE columns serializing a
 day off due to timezone conversion), a falsy-zero bug where dose 0 — the actual first rabies
@@ -117,6 +118,21 @@ exists in `tests/billing.test.js`).
   it now risked changing already-shipped Phase 1 appointment behavior; left as a flagged
   follow-up in the migration comment, not silently skipped. Overnight shifts (crossing midnight)
   aren't supported.
+- **Follow-up Reminders** (Phase 2, no doc spec beyond §0's confirmed channels): `POST
+  /api/reminders/run` (`reminders.manage`, Management/Admin only — finds animal-bite/consultation
+  follow-ups and appointments due `daysBefore` days out — default 1, i.e. "tomorrow" — and sends
+  an SMS and/or email per patient depending on which contact info they have), `GET /api/reminders`
+  (`reminders.view`, the send log). **Not self-scheduling** — nothing in the app calls this
+  automatically; a real deployment should point an external scheduler (system cron, a hosted
+  scheduler, or `node-cron` added later) at this endpoint on a daily cadence. Idempotent: a
+  unique constraint on `(source_type, source_id, channel)` in `reminder_logs`, checked before
+  sending, means running the job twice in a day never double-sends the same reminder — a failed
+  send still counts as "attempted," so this isn't a retry queue.
+  `src/services/notifications/{sms,email}Provider.js` are the pluggable seams: each picks an
+  implementation via `SMS_PROVIDER`/`EMAIL_PROVIDER` in `.env` (both default to `stub`, which
+  logs the message instead of sending — see `providers/stub*Provider.js`), so adding a real
+  Globe SMS client or Gmail SMTP client later is a new file plus one env var, not a change to
+  `reminders.service.js`.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
   permission override write an `audit_logs` row, per the architecture doc's §1.4 security baseline.
 

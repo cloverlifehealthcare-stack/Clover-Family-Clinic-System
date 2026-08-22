@@ -51,6 +51,12 @@ const PERMISSIONS = [
   // mirroring the appointments.manage split.
   { code: 'scheduling.view', module: 'scheduling', description: "View shifts and attendance (own, unless scheduling.manage)" },
   { code: 'scheduling.manage', module: 'scheduling', description: 'Assign staff shifts and record/correct attendance for others' },
+
+  // Third Phase 2 module, same non-matrix situation. Management/Admin only — unlike
+  // scheduling.view, there's no "view my own reminders" case here (reminders go to patients,
+  // not staff), so no role needs default access beyond the two that run/monitor the job.
+  { code: 'reminders.view', module: 'reminders', description: 'View the reminder send log' },
+  { code: 'reminders.manage', module: 'reminders', description: 'Manually trigger the reminder job' },
 ];
 
 module.exports = { PERMISSIONS };

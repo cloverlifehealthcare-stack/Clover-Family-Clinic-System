@@ -22,5 +22,15 @@ module.exports = {
     maxAttempts: parseInt(process.env.LOGIN_MAX_ATTEMPTS, 10) || 5,
     lockoutMinutes: parseInt(process.env.LOGIN_LOCKOUT_MINUTES, 10) || 15,
   },
+  // docs/clover-architecture.md §0: Globe (SMS) and Gmail (email) are the confirmed channels;
+  // real credentials don't exist yet, so both default to 'stub' (logs instead of sending —
+  // see src/services/notifications/). Switch to 'globe'/'gmail' once real API
+  // credentials/sender-ID registration exist, without changing any calling code.
+  notifications: {
+    smsProvider: process.env.SMS_PROVIDER || 'stub',
+    emailProvider: process.env.EMAIL_PROVIDER || 'stub',
+    clinicContactNumber: process.env.CLINIC_CONTACT_NUMBER || '+63 955 437 4779',
+    clinicContactEmail: process.env.CLINIC_CONTACT_EMAIL || 'cloverfamilycareabc@gmail.com',
+  },
   required,
 };

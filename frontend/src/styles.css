@@ -378,7 +378,8 @@ button[disabled] {
 .status-completed,
 .status-paid,
 .status-administered,
-.status-active {
+.status-active,
+.status-sent {
   background: #dcefe4;
   color: #1c6b45;
 }
@@ -396,7 +397,8 @@ button[disabled] {
 .status-void,
 .status-no_show,
 .status-voided,
-.status-missed {
+.status-missed,
+.status-failed {
   background: #fbe4e2;
   color: var(--color-danger);
 }
@@ -475,6 +477,28 @@ button[disabled] {
   font-size: 0.9rem;
   font-weight: 600;
   margin-bottom: 1rem;
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filter-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.filter-row select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-family: inherit;
 }
 
 .date-filter {

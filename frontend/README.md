@@ -1,18 +1,18 @@
 # Clover Clinic — Staff SPA
 
 React + Vite. **All six Phase 1 modules have screens**: Auth & RBAC, Patients, Animal Bite
-Center, Consultations, Appointments, and Billing. **Phase 2: Inventory and Staff Scheduling &
-Attendance** are done too. Follow-up reminders aren't built yet — see `../backend/README.md` for
-why Phase 2's design isn't documented up front the way Phase 1's was.
+Center, Consultations, Appointments, and Billing. **All three Phase 2 modules are done too**:
+Inventory, Staff Scheduling & Attendance, and Follow-up Reminders — see `../backend/README.md`
+for why Phase 2's design isn't documented up front the way Phase 1's was.
 
 **Verified in a real browser against the live API**, not just built:
 
-- Logged in as the seeded Management account (all 7 nav items show); created a Nurse account via
+- Logged in as the seeded Management account (all 8 nav items show); created a Nurse account via
   the API and confirmed their nav shows only the 5 items their permissions actually cover (no
-  Billing, no Staff Accounts); confirmed logout returns to `/login`; confirmed navigating a Nurse
-  directly to `/billing` by URL — not just hiding the link — renders "Access denied" rather than
-  the page, since the API would reject it anyway (§1.1: the client never decides what's allowed,
-  it only reflects what the server already permitted).
+  Billing, no Staff Accounts, no Reminders); confirmed logout returns to `/login`; confirmed
+  navigating a Nurse directly to `/billing` by URL — not just hiding the link — renders "Access
+  denied" rather than the page, since the API would reject it anyway (§1.1: the client never
+  decides what's allowed, it only reflects what the server already permitted).
 - Patients: created an adult patient (code generated correctly, no guardian section shown);
   created a minor and confirmed the guardian fields appear and are required, both client-side
   (HTML5 `required`, blocked submission) and would be server-side regardless; re-submitted the
@@ -67,6 +67,13 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   logged in as that Doctor and confirmed row-scoping end to end: their shift view shows only
   their own shift with no "Remove" button or assignment form (no `scheduling.manage`), and their
   attendance view correctly excludes Management's clock-in record from earlier.
+- Follow-up Reminders (Phase 2): as Management, opened the empty log, clicked "Run Reminders
+  Now" against a clean dataset (correctly reported `Sent 0, skipped 0, failed 0`), then created a
+  patient and an appointment for tomorrow via the API and re-ran the job — the log populated with
+  both the SMS and email rows (recipient, composed message, and "Sent" status badge all correct),
+  and filtering by Type → Follow-up correctly narrowed the list to zero since only an appointment
+  reminder existed. Confirmed the "Run Reminders Now" button and log filters are hidden/blocked
+  per the same `reminders.view`/`reminders.manage` permission split used everywhere else.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`
