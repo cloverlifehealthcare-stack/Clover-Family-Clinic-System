@@ -13,6 +13,10 @@ import { AnimalBiteLandingPage } from './pages/animal-bite/AnimalBiteLandingPage
 import { PatientAnimalBiteRecordsPage } from './pages/animal-bite/PatientAnimalBiteRecordsPage';
 import { AnimalBiteCreatePage } from './pages/animal-bite/AnimalBiteCreatePage';
 import { AnimalBiteDetailPage } from './pages/animal-bite/AnimalBiteDetailPage';
+import { ConsultationsLandingPage } from './pages/consultations/ConsultationsLandingPage';
+import { PatientConsultationsPage } from './pages/consultations/PatientConsultationsPage';
+import { ConsultationCreatePage } from './pages/consultations/ConsultationCreatePage';
+import { ConsultationDetailPage } from './pages/consultations/ConsultationDetailPage';
 
 export default function App() {
   return (
@@ -96,7 +100,31 @@ export default function App() {
             path="consultations"
             element={
               <ProtectedRoute permission="patients.history.view">
-                <ComingSoonPage title="Consultations" />
+                <ConsultationsLandingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:patientId/consultations"
+            element={
+              <ProtectedRoute permission="patients.history.view">
+                <PatientConsultationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="patients/:patientId/consultations/new"
+            element={
+              <ProtectedRoute permission="consultation.assessment.create">
+                <ConsultationCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="consultations/:id"
+            element={
+              <ProtectedRoute permission="patients.history.view">
+                <ConsultationDetailPage />
               </ProtectedRoute>
             }
           />

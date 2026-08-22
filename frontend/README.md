@@ -1,10 +1,11 @@
 # Clover Clinic — Staff SPA
 
 React + Vite. Auth & RBAC foundation, Patients (list/search, create with duplicate-warn and
-minor/guardian handling, view, edit), and Animal Bite Center (initial assessment, WHO Category
-I/II/III diagnosis, vaccine doses including dose 0, RIG for Category III, education, follow-ups,
-completion). Consultations, appointments, and billing have working, tested APIs in `../backend`
-but no screens here yet; their nav links go to a "coming soon" placeholder.
+minor/guardian handling, view, edit), Animal Bite Center (initial assessment, WHO Category I/II/III
+diagnosis, vaccine doses including dose 0, RIG for Category III, education, follow-ups,
+completion), and Consultations (initial assessment, diagnosis, multi-item prescriptions,
+education, follow-ups, completion). Appointments and billing have working, tested APIs in
+`../backend` but no screens here yet; their nav links go to a "coming soon" placeholder.
 
 **Verified in a real browser against the live API**, not just built:
 
@@ -29,6 +30,12 @@ but no screens here yet; their nav links go to a "coming soon" placeholder.
   falsy-zero backend bug two turns ago, confirmed fixed end-to-end through the UI too), recorded
   RIG, logged education, scheduled and completed a follow-up, then marked the whole record
   complete (status `completed`, form replaced by read-only summary).
+- Consultations: used the `PatientPicker` landing to find a patient by search, clicked through
+  to their consultations, created one, confirmed the prescription form is hidden until a
+  diagnosis exists ("Record a diagnosis before issuing a prescription"), recorded a diagnosis,
+  then issued a two-medicine prescription — added a second row via "+ Add another medicine" and
+  confirmed both items saved and displayed correctly — then logged education, scheduled and
+  completed a follow-up, and marked the consultation complete.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`
@@ -70,13 +77,17 @@ npm run dev
   shared `PatientForm` shows/requires the guardian fields client-side via `utils/age.js`, mirroring
   (not replacing) the backend's own minor check.
 - **`src/components/PatientPicker.jsx`** — shared "search for a patient first" landing, used by
-  Animal Bite Center and (next) Consultations, since neither has a standalone global list on the
+  both Animal Bite Center and Consultations, since neither has a standalone global list on the
   backend by design — those records only make sense in the context of one patient.
 - **`src/pages/animal-bite/`** — `AnimalBiteLandingPage` (picker), `PatientAnimalBiteRecordsPage`
   (list for one patient), `AnimalBiteCreatePage` (initial assessment), `AnimalBiteDetailPage` (the
   rest: diagnosis, doses, RIG, education, follow-ups, completion, each as its own section
   component in the same file, re-setting the whole record from each mutation's response rather
   than a separate refetch, since every backend endpoint already returns the full updated record).
+- **`src/pages/consultations/`** — same shape as `animal-bite/`, minus doses/RIG, plus a
+  `PrescriptionsSection` supporting a dynamic list of medicine rows ("+ Add another medicine")
+  submitted as one multi-item prescription; hidden until the consultation has a diagnosis,
+  matching the backend's own requirement.
 
 ## Known gaps
 

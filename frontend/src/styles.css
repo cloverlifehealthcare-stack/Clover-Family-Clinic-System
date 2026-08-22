@@ -457,6 +457,28 @@ button[disabled] {
   flex-basis: 100%;
 }
 
+.prescription-card {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--color-bg);
+}
+
+.rx-item-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.rx-item-row input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
 .plain-list {
   list-style: none;
   padding: 0;
