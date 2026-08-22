@@ -30,7 +30,7 @@ export function AppShell() {
       <header className="app-topbar">
         <span className="app-title">
           <img src="/logo.jpg" alt="" className="app-logo" />
-          Clover Family Care
+          Clover Family Care and Animal Bite Center
         </span>
         <div className="app-user">
           <span>

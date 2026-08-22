@@ -29,8 +29,8 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <img src="/logo.jpg" alt="Clover Family Care" className="login-logo" />
-        <h1>Clover Family Care</h1>
+        <img src="/logo.jpg" alt="Clover Family Care and Animal Bite Center" className="login-logo" />
+        <h1>Clover Family Care and Animal Bite Center</h1>
         <p className="login-subtitle">Patient Portal</p>
 
         {error && <div className="login-error">{error}</div>}

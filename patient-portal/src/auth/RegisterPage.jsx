@@ -83,7 +83,7 @@ export function RegisterPage() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={handleSubmit}>
-        <img src="/logo.jpg" alt="Clover Family Care" className="login-logo" />
+        <img src="/logo.jpg" alt="Clover Family Care and Animal Bite Center" className="login-logo" />
         <h1>Create Your Account</h1>
         <p className="login-subtitle">Adult patients (18+) only — see note below.</p>
 
