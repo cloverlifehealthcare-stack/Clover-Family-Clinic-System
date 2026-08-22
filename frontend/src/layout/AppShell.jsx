@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/appointments', label: 'Appointments', permission: 'appointments.view' },
   { to: '/billing', label: 'Billing', permission: 'billing.view' },
   { to: '/inventory', label: 'Inventory', permission: 'inventory.view' },
+  { to: '/scheduling', label: 'Scheduling', permission: 'scheduling.view' },
   { to: '/users', label: 'Staff Accounts', permission: 'users.manage' },
 ];
 

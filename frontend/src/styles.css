@@ -457,6 +457,14 @@ button[disabled] {
   flex-basis: 100%;
 }
 
+.clock-widget {
+  max-width: 480px;
+}
+
+.clock-widget p {
+  color: var(--color-muted);
+}
+
 .alert-banner {
   display: flex;
   gap: 1.5rem;

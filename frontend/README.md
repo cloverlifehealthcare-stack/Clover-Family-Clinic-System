@@ -1,10 +1,9 @@
 # Clover Clinic — Staff SPA
 
 React + Vite. **All six Phase 1 modules have screens**: Auth & RBAC, Patients, Animal Bite
-Center, Consultations, Appointments, and Billing. **Phase 2 has started: Inventory** is done too
-(items, batches, low-stock/expiring alerts). Follow-up reminders and staff scheduling aren't
-built yet — see `../backend/README.md` for why Phase 2's design isn't documented up front the
-way Phase 1's was.
+Center, Consultations, Appointments, and Billing. **Phase 2: Inventory and Staff Scheduling &
+Attendance** are done too. Follow-up reminders aren't built yet — see `../backend/README.md` for
+why Phase 2's design isn't documented up front the way Phase 1's was.
 
 **Verified in a real browser against the live API**, not just built:
 
@@ -60,6 +59,14 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   exactly that amount, and confirmed the list page's alert banner correctly flagged the batch as
   expiring within 30 days. Also confirmed a Cashier (no inventory permission at all) sees no
   Inventory nav link and gets "Access denied" navigating there directly by URL.
+- Staff Scheduling & Attendance (Phase 2): clocked in as Management (buttons correctly
+  toggled — Clock In disabled, Clock Out enabled — and the attendance table updated live),
+  assigned a newly-created Doctor a shift via the staff-roster dropdown (populated from the new
+  `/api/users/staff` endpoint — a second instance of the same permission gap the doctors
+  endpoint fixed, this time caught proactively before testing rather than discovered live), then
+  logged in as that Doctor and confirmed row-scoping end to end: their shift view shows only
+  their own shift with no "Remove" button or assignment form (no `scheduling.manage`), and their
+  attendance view correctly excludes Management's clock-in record from earlier.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`
@@ -130,6 +137,10 @@ npm run dev
   soon), `InventoryCreatePage`, `InventoryDetailPage` (batches table with an inline
   receive-batch form and a per-batch inline adjustment form, same collapsible-form pattern as
   Animal Bite's dose/RIG sections).
+- **`src/pages/scheduling/SchedulingPage.jsx`** — one page, not split into sub-routes like the
+  other modules: a self-service clock-in/out widget, a date-filtered shifts table + assign-shift
+  form, and a date-filtered attendance table + manual-correction form. `api/client.js` gained a
+  `delete` method here — nothing before this needed one.
 
 ## Known gaps
 

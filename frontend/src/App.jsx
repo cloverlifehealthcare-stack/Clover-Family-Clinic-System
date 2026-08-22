@@ -27,6 +27,7 @@ import { BillingDetailPage } from './pages/billing/BillingDetailPage';
 import { InventoryListPage } from './pages/inventory/InventoryListPage';
 import { InventoryCreatePage } from './pages/inventory/InventoryCreatePage';
 import { InventoryDetailPage } from './pages/inventory/InventoryDetailPage';
+import { SchedulingPage } from './pages/scheduling/SchedulingPage';
 
 export default function App() {
   return (
@@ -215,6 +216,14 @@ export default function App() {
             element={
               <ProtectedRoute permission="inventory.view">
                 <InventoryDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="scheduling"
+            element={
+              <ProtectedRoute permission="scheduling.view">
+                <SchedulingPage />
               </ProtectedRoute>
             }
           />
