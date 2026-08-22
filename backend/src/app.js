@@ -7,6 +7,7 @@ const env = require('./config/env');
 const authRoutes = require('./modules/auth/auth.routes');
 const usersRoutes = require('./modules/users/users.routes');
 const permissionsRoutes = require('./modules/permissions/permissions.routes');
+const patientsRoutes = require('./modules/patients/patients.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -30,6 +31,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/permissions', permissionsRoutes);
+app.use('/api/patients', patientsRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

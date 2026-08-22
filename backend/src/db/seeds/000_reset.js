@@ -1,7 +1,11 @@
 // Dev-only reset so `npm run seed` is repeatable against a scratch database.
-// Deletes in FK-safe order (children before parents). Never run against production data —
-// this seed set is for standing up local/staging environments, not for go-live.
+// Deletes in FK-safe order (children before parents) — every new module that adds a table
+// referencing users (or patients) needs a `.del()` line here, above the `users` line, or
+// this breaks the same way it did when the patients table was added. Never run against
+// production data — this seed set is for standing up local/staging environments, not go-live.
 exports.seed = async function seed(knex) {
+  await knex('patient_code_sequences').del();
+  await knex('patients').del(); // references users.id — must go before users
   await knex('user_permissions').del();
   await knex('audit_logs').del();
   await knex('users').del();

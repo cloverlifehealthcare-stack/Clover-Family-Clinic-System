@@ -1,12 +1,15 @@
-# Clover Clinic API — Auth & RBAC foundation
+# Clover Clinic API — Auth & RBAC foundation + Patient registration & records
 
-Implements the module listed first in `docs/clover-architecture.md` §7: authentication, roles,
-and the permission framework. Nothing from later Phase 1 modules (patients, animal bite,
-consultation, appointments, billing) is built yet — this is the base every one of them will sit on.
+Implements the first two modules in `docs/clover-architecture.md` §7's build order: auth/roles/
+permissions, and patient registration & records. Animal bite center, consultation, appointments,
+and billing aren't built yet.
 
-**Not yet run or tested in the environment this was written in** — no Node.js, npm, or Docker
-were available there. Everything below is written to work, following the design in the
-architecture doc, but hasn't been executed. Run it locally and report back anything that breaks.
+**Verified, not just written** — run against a real Postgres instance (Node 24, Docker Desktop,
+this repo's `docker-compose.yml`): migrations apply cleanly, all seeds run, the server boots, a
+real login/patient-creation round-trip works over HTTP, and the full test suite (24 tests) plus
+lint pass. Two real bugs were caught and fixed in the process — see git log for `e48a077` (an
+env-var leak between Jest's setup process and its test workers) and the date type-parser fix in
+`src/db/knex.js` (Postgres DATE columns were serializing a day off due to timezone conversion).
 
 ## What's here
 
@@ -20,6 +23,13 @@ architecture doc, but hasn't been executed. Run it locally and report back anyth
   to the role default, and audit-logs every denial. This is what makes "Management and authorized
   Admin personnel" work: grant one permission to one Admin without a special case in code.
 - **User management**: `GET/POST /api/users`, deactivate/reactivate — Management only.
+- **Patients**: `GET/POST /api/patients`, `PATCH /api/patients/:id`. `patient_code` is generated
+  atomically (`MMYY-NNNN`, resets monthly). Creating a likely duplicate (same first/last name +
+  DOB) returns `409` with the matches instead of silently creating one — resubmit with
+  `confirmDuplicate: true` to proceed anyway. A minor (under 18) requires `guardianName`,
+  `guardianRelationship`, `guardianContactNumber`. Field visibility on read is gated by
+  `patients.history.view`: Cashier (billing-relevant fields only) gets a smaller shape than
+  Doctor/Nurse/Management (full record), per the §3.2 matrix.
 - **Permission administration**: `GET /api/permissions`, `GET/PUT /api/permissions/users/:userId`
   — view and grant/revoke per-user overrides. Management only.
 - **Audit logging**: every login attempt, permission denial, user creation/deactivation, and
