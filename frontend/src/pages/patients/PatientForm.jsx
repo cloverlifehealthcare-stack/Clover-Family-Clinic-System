@@ -120,8 +120,10 @@ export function PatientForm({ initialValues, onSubmit, submitLabel, error }) {
 function Field({ label, name, value, onChange, type = 'text', required, wide }) {
   return (
     <label className={wide ? 'field-wide' : ''}>
-      {label}
-      {required && <span className="required">*</span>}
+      <span>
+        {label}
+        {required && <span className="required">*</span>}
+      </span>
       <input type={type} name={name} value={value} onChange={onChange} required={required} />
     </label>
   );
