@@ -24,6 +24,9 @@ import { BillingLandingPage } from './pages/billing/BillingLandingPage';
 import { PatientBillingPage } from './pages/billing/PatientBillingPage';
 import { BillingCreatePage } from './pages/billing/BillingCreatePage';
 import { BillingDetailPage } from './pages/billing/BillingDetailPage';
+import { InventoryListPage } from './pages/inventory/InventoryListPage';
+import { InventoryCreatePage } from './pages/inventory/InventoryCreatePage';
+import { InventoryDetailPage } from './pages/inventory/InventoryDetailPage';
 
 export default function App() {
   return (
@@ -188,6 +191,30 @@ export default function App() {
             element={
               <ProtectedRoute permission="billing.view">
                 <BillingDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="inventory"
+            element={
+              <ProtectedRoute permission="inventory.view">
+                <InventoryListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="inventory/new"
+            element={
+              <ProtectedRoute permission="inventory.adjust">
+                <InventoryCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="inventory/:id"
+            element={
+              <ProtectedRoute permission="inventory.view">
+                <InventoryDetailPage />
               </ProtectedRoute>
             }
           />

@@ -1,9 +1,10 @@
 # Clover Clinic — Staff SPA
 
-React + Vite. **All six Phase 1 modules have screens now**: Auth & RBAC, Patients, Animal Bite
-Center, Consultations, Appointments, and Billing (statements with a services-catalog picker,
-PWD/Senior discount, payments, void with the same "void payments before voiding the statement"
-rule as the backend).
+React + Vite. **All six Phase 1 modules have screens**: Auth & RBAC, Patients, Animal Bite
+Center, Consultations, Appointments, and Billing. **Phase 2 has started: Inventory** is done too
+(items, batches, low-stock/expiring alerts). Follow-up reminders and staff scheduling aren't
+built yet — see `../backend/README.md` for why Phase 2's design isn't documented up front the
+way Phase 1's was.
 
 **Verified in a real browser against the live API**, not just built:
 
@@ -53,6 +54,12 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   reverted to `partially_paid`, balance recalculated), and confirmed voiding the whole statement
   is blocked with a clear message while an active payment remains — the exact rule from the
   backend's billing test suite, now visible as real UI behavior instead of just a passing test.
+- Inventory (Phase 2): created an item (correctly showed "low stock" at 0 remaining), received a
+  batch with a near-term expiration date, confirmed the badge cleared once stock exceeded the
+  reorder threshold, recorded a spoilage adjustment and confirmed remaining stock dropped by
+  exactly that amount, and confirmed the list page's alert banner correctly flagged the batch as
+  expiring within 30 days. Also confirmed a Cashier (no inventory permission at all) sees no
+  Inventory nav link and gets "Access denied" navigating there directly by URL.
 
 One real testing-tool quirk hit along the way, not an app bug: the browser automation's
 coordinate-based click occasionally missed the actual button (confirmed by dispatching `.click()`
@@ -119,6 +126,10 @@ npm run dev
   minor-guardian pattern from `PatientForm`), `BillingDetailPage` (payments, per-payment void with
   an inline reason field instead of a `window.prompt()` — keeps it consistent with the rest of the
   app and testable the same way).
+- **`src/pages/inventory/`** — `InventoryListPage` (with an alert banner for low-stock/expiring-
+  soon), `InventoryCreatePage`, `InventoryDetailPage` (batches table with an inline
+  receive-batch form and a per-batch inline adjustment form, same collapsible-form pattern as
+  Animal Bite's dose/RIG sections).
 
 ## Known gaps
 
