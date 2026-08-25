@@ -22,7 +22,9 @@ export function FinancialPage() {
   const [purchases, setPurchases] = useState([]);
   const [serviceFees, setServiceFees] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [cashDisbursements, setCashDisbursements] = useState([]);
   const [voidReason, setVoidReason] = useState({});
+  const [disbursementVoidReason, setDisbursementVoidReason] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -37,13 +39,15 @@ export function FinancialPage() {
       financialApi.getPurchases({ startDate, endDate }),
       financialApi.listExpenses({ startDate, endDate }),
       financialApi.listServiceFees(),
+      financialApi.listCashDisbursements({ startDate, endDate }),
     ])
-      .then(([s, j, p, e, f]) => {
+      .then(([s, j, p, e, f, c]) => {
         setSummary(s);
         setJournal(j);
         setPurchases(p);
         setExpenses(e);
         setServiceFees(f);
+        setCashDisbursements(c);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -232,6 +236,66 @@ export function FinancialPage() {
             </table>
             {canManage && <RecordExpenseForm onRecorded={reload} />}
           </section>
+
+          <section className="record-section">
+            <h2>Cash Disbursement</h2>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Particulars</th>
+                  <th>Amount</th>
+                  <th>Given To</th>
+                  <th>Status</th>
+                  {canManage && <th />}
+                </tr>
+              </thead>
+              <tbody>
+                {cashDisbursements.map((d) => (
+                  <tr key={d.id}>
+                    <td>{d.disbursement_date}</td>
+                    <td>{d.particulars}</td>
+                    <td>₱{Number(d.amount).toFixed(2)}</td>
+                    <td>{d.given_to}</td>
+                    <td>
+                      <span className={`status-badge status-${d.status}`}>{d.status}</span>
+                    </td>
+                    {canManage && (
+                      <td>
+                        {d.status === 'active' && (
+                          <span className="void-inline">
+                            <input
+                              placeholder="Void reason"
+                              value={disbursementVoidReason[d.id] || ''}
+                              onChange={(e) =>
+                                setDisbursementVoidReason({ ...disbursementVoidReason, [d.id]: e.target.value })
+                              }
+                            />
+                            <button
+                              type="button"
+                              disabled={!disbursementVoidReason[d.id]}
+                              onClick={async () => {
+                                await financialApi.voidCashDisbursement(d.id, disbursementVoidReason[d.id]);
+                                reload();
+                              }}
+                            >
+                              Void
+                            </button>
+                          </span>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+                {cashDisbursements.length === 0 && (
+                  <tr>
+                    <td colSpan={canManage ? 6 : 5}>No cash disbursements recorded in this range.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {canManage && <RecordCashDisbursementForm onRecorded={reload} />}
+          </section>
         </>
       )}
     </div>
@@ -377,6 +441,56 @@ function RecordExpenseForm({ onRecorded }) {
         <input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
       </label>
       <button type="submit">Record Expense</button>
+    </form>
+  );
+}
+
+function RecordCashDisbursementForm({ onRecorded }) {
+  const [form, setForm] = useState({
+    disbursementDate: todayDateString(),
+    particulars: '',
+    amount: '',
+    givenTo: '',
+  });
+  const [error, setError] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await financialApi.createCashDisbursement({ ...form, amount: Number(form.amount) });
+      setForm({ disbursementDate: todayDateString(), particulars: '', amount: '', givenTo: '' });
+      onRecorded();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="inline-form">
+      {error && <div className="form-error">{error}</div>}
+      <label>
+        Date
+        <input
+          type="date"
+          value={form.disbursementDate}
+          onChange={(e) => setForm({ ...form, disbursementDate: e.target.value })}
+          required
+        />
+      </label>
+      <label className="field-wide">
+        Particulars
+        <input value={form.particulars} onChange={(e) => setForm({ ...form, particulars: e.target.value })} required />
+      </label>
+      <label>
+        Amount
+        <input type="number" min="0.01" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+      </label>
+      <label>
+        Given To
+        <input value={form.givenTo} onChange={(e) => setForm({ ...form, givenTo: e.target.value })} required />
+      </label>
+      <button type="submit">Record Disbursement</button>
     </form>
   );
 }

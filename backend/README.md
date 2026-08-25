@@ -179,6 +179,12 @@ exists in `tests/billing.test.js`).
     regardless of which doctor actually performed the service. Verified with a real
     inventory-tracked dose (₱150 cost), a ₱1,000 paid animal-bite statement, and a ₱300
     animal-bite doctor's fee producing a ₱550 net row — see `tests/financial.test.js`.
+  - **Cash Disbursement** (post-launch addition, at the clinic's request): `GET/POST
+    /api/financial/cash-disbursements`, `POST /:id/void` (view/manage-gated the same as
+    Expenses). A new `cash_disbursements` table — date, particulars, amount, given-to — separate
+    from `expenses` (which is categorized operating cost) since disbursements aren't tied to one
+    of the fixed expense categories. Same void pattern (`status`/`void_reason`/`voided_by`/
+    `voided_at`) as `expenses`/`payments` — no hard delete, for the same audit reasons.
 - **Daily Activity Report** (Phase 3, no doc spec): `GET /api/reports/daily-activity?date=YYYY-MM-DD`
   (`reports.view`, Management **and** Admin by default — unlike financial data). Returns
   operational counts only (new patients, animal-bite visits/consultations/appointments by status,

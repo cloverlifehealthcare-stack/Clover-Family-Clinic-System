@@ -91,6 +91,64 @@ describe('expenses', () => {
   });
 });
 
+describe('cash disbursements', () => {
+  it('Management can record and void a cash disbursement; Admin cannot (no financial.manage by default)', async () => {
+    const mgmt = await loginAs('Management');
+    const admin = await loginAs('Admin');
+
+    const adminAttempt = await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ disbursementDate: todayDateString(), particulars: 'Petty cash for supplies run', amount: 500, givenTo: 'Juan Dela Cruz' });
+    expect(adminAttempt.status).toBe(403);
+
+    const created = await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ disbursementDate: todayDateString(), particulars: 'Petty cash for supplies run', amount: 500, givenTo: 'Juan Dela Cruz' });
+    expect(created.status).toBe(201);
+    expect(created.body.status).toBe('active');
+    expect(created.body.amount).toBe('500.00');
+    expect(created.body.given_to).toBe('Juan Dela Cruz');
+
+    const listed = await request(app)
+      .get('/api/financial/cash-disbursements')
+      .query({ startDate: todayDateString(), endDate: todayDateString() })
+      .set('Authorization', `Bearer ${mgmt}`);
+    expect(listed.status).toBe(200);
+    expect(listed.body.find((d) => d.id === created.body.id)).toBeDefined();
+
+    const voided = await request(app)
+      .post(`/api/financial/cash-disbursements/${created.body.id}/void`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ reason: 'Entered twice by mistake' });
+    expect(voided.status).toBe(200);
+    expect(voided.body.status).toBe('voided');
+
+    const revoid = await request(app)
+      .post(`/api/financial/cash-disbursements/${created.body.id}/void`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ reason: 'Again' });
+    expect(revoid.status).toBe(400);
+  });
+
+  it('rejects a non-positive amount and missing required fields', async () => {
+    const mgmt = await loginAs('Management');
+
+    const badAmount = await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ disbursementDate: todayDateString(), particulars: 'x', amount: 0, givenTo: 'Someone' });
+    expect(badAmount.status).toBe(400);
+
+    const missingGivenTo = await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ disbursementDate: todayDateString(), particulars: 'x', amount: 100 });
+    expect(missingGivenTo.status).toBe(400);
+  });
+});
+
 describe('sales journal / summary', () => {
   it('reflects a real payment inside the queried range and excludes one outside it', async () => {
     const mgmt = await loginAs('Management');
@@ -309,5 +367,17 @@ describe('permissions', () => {
       .set('Authorization', `Bearer ${cashier}`)
       .send({ expenseDate: today, category: 'other', description: 'x', amount: 10 });
     expect(expense.status).toBe(403);
+
+    const disbursementView = await request(app)
+      .get('/api/financial/cash-disbursements')
+      .query({ startDate: today, endDate: today })
+      .set('Authorization', `Bearer ${cashier}`);
+    expect(disbursementView.status).toBe(403);
+
+    const disbursementCreate = await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${cashier}`)
+      .send({ disbursementDate: today, particulars: 'x', amount: 10, givenTo: 'Someone' });
+    expect(disbursementCreate.status).toBe(403);
   });
 });

@@ -6,6 +6,7 @@
 exports.seed = async function seed(knex) {
   await knex('patient_accounts').del(); // references patients
   await knex('expenses').del(); // references users
+  await knex('cash_disbursements').del(); // references users
   await knex('reminder_logs').del(); // references patients
   await knex('attendance_records').del(); // references users
   await knex('staff_shifts').del(); // references users

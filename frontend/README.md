@@ -106,6 +106,12 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   `backend/tests/financial.test.js` rather than re-driven through the Animal Bite Center's full
   diagnosis/dosing UI flow in this pass — that UI flow itself was already separately verified for
   Inventory in the Phase 2 entry above.
+- Cash Disbursement (post-launch addition): as Management, in a real browser end to end — filled
+  the on-screen Record Disbursement form (Date, Particulars "Cash advance for wound-dressing
+  supplies", Amount ₱750, Given To "Nurse Santos") and confirmed the new row appeared in the
+  table with Status "Active"; voided it through the same inline void-reason input pattern
+  Expenses/Billing use and confirmed the status badge flipped to "Voided" and the Void control
+  disappeared, with no page reload needed.
 - Daily Activity Report (Phase 3): confirmed the page shows the same day's new-patient count via
   `newPatients`, and confirmed it deliberately carries no revenue/profit figures anywhere in the
   response — that stays under Financial Management, which is gated more narrowly. Also confirmed

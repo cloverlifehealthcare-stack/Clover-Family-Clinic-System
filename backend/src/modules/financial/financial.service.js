@@ -100,6 +100,79 @@ async function listExpenses({ startDate, endDate, category }) {
   return query;
 }
 
+async function createCashDisbursement({ disbursementDate, particulars, amount, givenTo, recordedBy, ipAddress }) {
+  if (!disbursementDate || !particulars || !givenTo) {
+    throw new ApiError(400, 'disbursementDate, particulars, and givenTo are required.');
+  }
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new ApiError(400, 'amount must be a positive number.');
+  }
+
+  const [created] = await db('cash_disbursements')
+    .insert({
+      disbursement_date: disbursementDate,
+      particulars,
+      amount: round2(numericAmount),
+      given_to: givenTo,
+      recorded_by: recordedBy,
+    })
+    .returning(['id']);
+
+  await auditLog.write({
+    userId: recordedBy,
+    action: 'financial.cash_disbursement_create',
+    entityType: 'cash_disbursement',
+    entityId: created.id,
+    newValue: { disbursementDate, particulars, amount: numericAmount, givenTo },
+    ipAddress,
+  });
+
+  return db('cash_disbursements').where({ id: created.id }).first();
+}
+
+async function voidCashDisbursement(id, { reason, actingUserId, ipAddress }) {
+  const disbursement = await db('cash_disbursements').where({ id }).first();
+  if (!disbursement) {
+    throw new ApiError(404, 'Cash disbursement not found.');
+  }
+  if (disbursement.status === 'voided') {
+    throw new ApiError(400, 'This cash disbursement has already been voided.');
+  }
+  if (!reason) {
+    throw new ApiError(400, 'reason is required to void a cash disbursement.');
+  }
+
+  await db('cash_disbursements').where({ id }).update({
+    status: 'voided',
+    void_reason: reason,
+    voided_by: actingUserId,
+    voided_at: db.fn.now(),
+  });
+
+  await auditLog.write({
+    userId: actingUserId,
+    action: 'financial.cash_disbursement_void',
+    entityType: 'cash_disbursement',
+    entityId: id,
+    newValue: { reason },
+    ipAddress,
+  });
+
+  return db('cash_disbursements').where({ id }).first();
+}
+
+async function listCashDisbursements({ startDate, endDate }) {
+  let query = db('cash_disbursements').orderBy('disbursement_date', 'desc').orderBy('id', 'desc');
+  if (startDate) {
+    query = query.andWhere('disbursement_date', '>=', startDate);
+  }
+  if (endDate) {
+    query = query.andWhere('disbursement_date', '<=', endDate);
+  }
+  return query;
+}
+
 // Sales Journal (BIR Manual Books of Accounts, columnar format — docs/clover-architecture.md
 // §0: "pending your accountant/bookkeeper's sign-off before go-live"): one row per collected
 // payment, since that's the point an OR number is actually issued and revenue is recognized.
@@ -297,6 +370,9 @@ module.exports = {
   createExpense,
   voidExpense,
   listExpenses,
+  createCashDisbursement,
+  voidCashDisbursement,
+  listCashDisbursements,
   getSalesJournal,
   getPurchases,
   getSummary,

@@ -11,6 +11,10 @@ router.get('/expenses', requirePermission('financial.view'), controller.listExpe
 router.post('/expenses', requirePermission('financial.manage'), controller.createExpense);
 router.post('/expenses/:id/void', requirePermission('financial.manage'), controller.voidExpense);
 
+router.get('/cash-disbursements', requirePermission('financial.view'), controller.listCashDisbursements);
+router.post('/cash-disbursements', requirePermission('financial.manage'), controller.createCashDisbursement);
+router.post('/cash-disbursements/:id/void', requirePermission('financial.manage'), controller.voidCashDisbursement);
+
 router.get('/sales-journal', requirePermission('financial.view'), controller.getSalesJournal);
 router.get('/purchases', requirePermission('financial.view'), controller.getPurchases);
 router.get('/summary', requirePermission('financial.view'), controller.getSummary);

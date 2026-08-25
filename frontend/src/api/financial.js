@@ -41,3 +41,15 @@ export function createExpense(input) {
 export function voidExpense(id, reason) {
   return api.post(`/financial/expenses/${id}/void`, { reason });
 }
+
+export function listCashDisbursements(range) {
+  return api.get(`/financial/cash-disbursements?${rangeQuery(range)}`);
+}
+
+export function createCashDisbursement(input) {
+  return api.post('/financial/cash-disbursements', input);
+}
+
+export function voidCashDisbursement(id, reason) {
+  return api.post(`/financial/cash-disbursements/${id}/void`, { reason });
+}

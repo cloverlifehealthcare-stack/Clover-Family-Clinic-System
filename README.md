@@ -39,8 +39,11 @@ the daily-cash-total Sales Ledger was redesigned into a per-patient profitabilit
 per billing statement showing sales less cost of goods (vaccines/RIG actually consumed against a
 tracked Inventory batch, looked up automatically — no manual entry) and doctor's fee (a fixed
 amount per service type — animal bite / consultation / manual — configurable on the page itself,
-the same fee regardless of which doctor performed it). See `backend/README.md` and
-`frontend/README.md` for the full design rationale and verification notes.
+the same fee regardless of which doctor performed it). A **Cash Disbursement** section was added
+to the same page in the same pass — a simple date/particulars/amount/given-to record with the
+same void-not-delete pattern as Expenses, for cash paid out that isn't a categorized operating
+expense. See `backend/README.md` and `frontend/README.md` for the full design rationale and
+verification notes.
 
 **Phase 4 is nearly complete — the Full Audit Log UI, the Patient Portal, and the reporting half
 of Advanced Reports are all done.** Per §2, Phase 4 also includes a backup mechanism, not built
