@@ -147,6 +147,26 @@ describe('cash disbursements', () => {
       .send({ disbursementDate: todayDateString(), particulars: 'x', amount: 100 });
     expect(missingGivenTo.status).toBe(400);
   });
+
+  it('is included in the Summary and subtracted from net profit alongside expenses', async () => {
+    const mgmt = await loginAs('Management');
+    const today = todayDateString();
+
+    await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ disbursementDate: today, particulars: 'Cash advance for wound-dressing supplies', amount: 150, givenTo: 'Nurse Santos' });
+
+    const summary = await request(app)
+      .get('/api/financial/summary')
+      .query({ startDate: today, endDate: today })
+      .set('Authorization', `Bearer ${mgmt}`);
+    expect(summary.status).toBe(200);
+    expect(summary.body.totalCashDisbursements).toBeGreaterThanOrEqual(150);
+    expect(summary.body.netProfit).toBe(
+      round2(summary.body.totalRevenue - summary.body.totalExpenses - summary.body.totalCashDisbursements)
+    );
+  });
 });
 
 describe('sales journal / summary', () => {
@@ -201,7 +221,9 @@ describe('sales journal / summary', () => {
       .query({ startDate: today, endDate: today })
       .set('Authorization', `Bearer ${mgmt}`);
     expect(summary.status).toBe(200);
-    expect(summary.body.netProfit).toBe(round2(summary.body.totalRevenue - summary.body.totalExpenses));
+    expect(summary.body.netProfit).toBe(
+      round2(summary.body.totalRevenue - summary.body.totalExpenses - summary.body.totalCashDisbursements)
+    );
   });
 });
 

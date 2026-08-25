@@ -634,6 +634,7 @@ button[disabled] {
 .summary-cards {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -646,6 +647,20 @@ button[disabled] {
   border-radius: 8px;
   padding: 0.9rem 1.1rem;
   background: var(--color-bg);
+}
+
+.summary-card--result {
+  border-color: var(--color-primary);
+  border-width: 2px;
+  background: rgba(31, 111, 84, 0.06);
+}
+
+.summary-operator {
+  flex: 0 0 auto;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-muted);
+  padding-top: 1.2rem;
 }
 
 .summary-label {

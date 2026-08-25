@@ -89,11 +89,18 @@ export function FinancialPage() {
                   <span className="summary-label">Total Revenue</span>
                   <span className="summary-value">₱{summary.totalRevenue.toFixed(2)}</span>
                 </div>
+                <span className="summary-operator" aria-hidden="true">−</span>
                 <div className="summary-card">
                   <span className="summary-label">Total Expenses</span>
                   <span className="summary-value">₱{summary.totalExpenses.toFixed(2)}</span>
                 </div>
+                <span className="summary-operator" aria-hidden="true">−</span>
                 <div className="summary-card">
+                  <span className="summary-label">Total Cash Disbursement</span>
+                  <span className="summary-value">₱{summary.totalCashDisbursements.toFixed(2)}</span>
+                </div>
+                <span className="summary-operator" aria-hidden="true">=</span>
+                <div className="summary-card summary-card--result">
                   <span className="summary-label">Net Profit</span>
                   <span className="summary-value">₱{summary.netProfit.toFixed(2)}</span>
                 </div>

@@ -359,9 +359,23 @@ async function getSummary({ startDate, endDate }) {
     .andWhere('expense_date', '<=', endDate)
     .select(db.raw('coalesce(sum(amount), 0) as total'));
 
+  const [disbursementRow] = await db('cash_disbursements')
+    .where('status', 'active')
+    .andWhere('disbursement_date', '>=', startDate)
+    .andWhere('disbursement_date', '<=', endDate)
+    .select(db.raw('coalesce(sum(amount), 0) as total'));
+
   const totalRevenue = round2(Number(revenueRow.total));
   const totalExpenses = round2(Number(expenseRow.total));
-  return { startDate, endDate, totalRevenue, totalExpenses, netProfit: round2(totalRevenue - totalExpenses) };
+  const totalCashDisbursements = round2(Number(disbursementRow.total));
+  return {
+    startDate,
+    endDate,
+    totalRevenue,
+    totalExpenses,
+    totalCashDisbursements,
+    netProfit: round2(totalRevenue - totalExpenses - totalCashDisbursements),
+  };
 }
 
 module.exports = {

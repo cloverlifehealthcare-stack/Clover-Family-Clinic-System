@@ -111,7 +111,11 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   supplies", Amount ₱750, Given To "Nurse Santos") and confirmed the new row appeared in the
   table with Status "Active"; voided it through the same inline void-reason input pattern
   Expenses/Billing use and confirmed the status badge flipped to "Voided" and the Void control
-  disappeared, with no page reload needed.
+  disappeared, with no page reload needed. The Summary section was also reworked in the same
+  pass into a literal equation (Total Revenue − Total Expenses − Total Cash Disbursement = Net
+  Profit, with the Net Profit card visually highlighted); recorded a ₱250 disbursement via the
+  API with no other activity in range and confirmed Summary correctly showed
+  ₱0.00 − ₱0.00 − ₱250.00 = **-₱250.00**.
 - Daily Activity Report (Phase 3): confirmed the page shows the same day's new-patient count via
   `newPatients`, and confirmed it deliberately carries no revenue/profit figures anywhere in the
   response — that stays under Financial Management, which is gated more narrowly. Also confirmed
