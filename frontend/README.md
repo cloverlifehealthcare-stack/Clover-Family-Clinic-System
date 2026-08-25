@@ -84,13 +84,28 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   per the same `reminders.view`/`reminders.manage` permission split used everywhere else.
 - Financial Management (Phase 3): as Management, created a patient, a billing statement, and a
   payment via the API (₱800, OR-SMOKE-001), then confirmed the Financial page's Summary/Sales
-  Journal/Sales Ledger all picked it up correctly (₱800 revenue, the journal row showing the
-  right OR number/payor/amount, the ledger's daily total and running balance both ₱800), recorded
-  a ₱150 expense through the on-screen form (Total Expenses/Net Profit updated live), then voided
-  it through the same inline void-reason input pattern Billing uses — confirmed the status badge
-  flipped to "Voided", the Void control disappeared, and Total Expenses/Net Profit recalculated to
-  ₱0/₱800 without a page reload. Confirmed a Cashier (no `financial.view`) sees no Financial nav
-  link and gets "Access denied" navigating there directly by URL.
+  Journal all picked it up correctly (₱800 revenue, the journal row showing the right OR
+  number/payor/amount), recorded a ₱150 expense through the on-screen form (Total
+  Expenses/Net Profit updated live), then voided it through the same inline void-reason input
+  pattern Billing uses — confirmed the status badge flipped to "Voided", the Void control
+  disappeared, and Total Expenses/Net Profit recalculated to ₱0/₱800 without a page reload.
+  Confirmed a Cashier (no `financial.view`) sees no Financial nav link and gets "Access denied"
+  navigating there directly by URL.
+- Purchases + Service Fee Options (post-launch redesign of Sales Ledger): as Management, in a
+  real browser end to end — registered a patient through the New Patient form, created a manual
+  billing statement through Billing's "New Statement" screen (Medical Consultation, ₱300), and
+  recorded a full cash payment through the on-screen Record Payment form. Navigated to Financial
+  and confirmed the new Purchases table picked up the paid statement correctly (Sales ₱300.00,
+  Cost of Goods ₱0.00 — expected, a manual charge has no inventory consumption to attribute,
+  Doctor's Fee ₱0.00, Net ₱300.00). Edited the Manual Charge row under Service Fee Options to ₱50
+  through its inline input and Save button; after the page's reload-on-save, the Purchases row's
+  Doctor's Fee and Net recalculated live to ₱50.00/₱250.00 with no manual refresh needed. Also set
+  the Animal Bite fee to ₱300 and confirmed it persisted correctly across a reload. The
+  inventory-tracked-dose cost-of-goods path (an administered dose linked to a batch with a real
+  `unitCost` correctly reducing Purchases' Cost of Goods column) was verified at the API level in
+  `backend/tests/financial.test.js` rather than re-driven through the Animal Bite Center's full
+  diagnosis/dosing UI flow in this pass — that UI flow itself was already separately verified for
+  Inventory in the Phase 2 entry above.
 - Daily Activity Report (Phase 3): confirmed the page shows the same day's new-patient count via
   `newPatients`, and confirmed it deliberately carries no revenue/profit figures anywhere in the
   response — that stays under Financial Management, which is gated more narrowly. Also confirmed

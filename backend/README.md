@@ -145,18 +145,40 @@ exists in `tests/billing.test.js`).
   `POST /:id/void` (`financial.manage`, Management only by default — Admin needs an individual
   `user_permissions` override, per §3.2's "a staff member cannot view Management's profit
   reports" rule extended to the whole financial bucket); `GET /api/financial/sales-journal`,
-  `/sales-ledger`, `/summary` (`financial.view`, same restriction, all take `startDate`/`endDate`
-  query params). The Sales Journal/Ledger are computed from the existing `payments` table rather
-  than a duplicated one — a payment is the actual revenue-recognition event (that's when an OR
-  number is issued), so the journal is one row per payment and the ledger groups those into daily
-  totals with a running balance, the BIR Manual Books of Accounts columnar format named in §0. A
-  statement's PWD/Senior discount is shown on its journal row as a flag (`discount_type`), not
-  pro-rated into a dollar figure per partial payment — the discount was approved once against the
-  whole statement, and splitting it across payments would invent a number this system can't
-  actually verify. `financial.manage`/`financial.view` are **not** substitutes for an accountant's
-  review before these are treated as official books — flagged on the frontend page itself, not
-  just here. `expenses` is a new table with the same void pattern (`status`/`void_reason`/
-  `voided_by`/`voided_at`) as `payments` — no hard delete, for the same audit reasons.
+  `/purchases`, `/summary` (`financial.view`, same restriction, all take `startDate`/`endDate`
+  query params). The Sales Journal is computed from the existing `payments` table rather than a
+  duplicated one — a payment is the actual revenue-recognition event (that's when an OR number is
+  issued), so the journal is one row per payment, the BIR Manual Books of Accounts columnar format
+  named in §0. A statement's PWD/Senior discount is shown on its journal row as a flag
+  (`discount_type`), not pro-rated into a dollar figure per partial payment — the discount was
+  approved once against the whole statement, and splitting it across payments would invent a
+  number this system can't actually verify. `financial.manage`/`financial.view` are **not**
+  substitutes for an accountant's review before these are treated as official books — flagged on
+  the frontend page itself, not just here. `expenses` is a new table with the same void pattern
+  (`status`/`void_reason`/`voided_by`/`voided_at`) as `payments` — no hard delete, for the same
+  audit reasons.
+  - **Purchases** (post-launch redesign of the original Sales Ledger, at the clinic's explicit
+    request — not a relabel, the shape changed): one row per billing statement (not per payment,
+    unlike the journal), showing sales less cost of goods less doctor's fee. A statement is
+    included if it has at least one active payment with `paid_at` in the queried range; its sales
+    figure is the statement's full amount collected to date (all active payments, not just the
+    ones inside the range) — this avoids double-counting cost of goods/doctor's fee across partial
+    payments or across reporting periods, at the cost of not being strictly date-scoped in the
+    rare case a statement is paid off across more than one period. Cost of goods is looked up
+    automatically, never entered manually: `getAnimalBiteCostOfGoods` in
+    `src/modules/financial/financial.service.js` sums `inventory_batches.unit_cost` for every
+    administered dose/RIG on the statement's animal-bite record that was linked to a tracked batch
+    (`inventoryBatchId` at administration time — see Inventory below); doses given against a
+    free-text `batchLotNumber` instead contribute nothing, since there's no cost to look up.
+    Consultation and manual charges always show 0 cost of goods — there's no equivalent per-visit
+    inventory consumption tracked for those. Doctor's fee comes from the new `service_fees` table
+    (`GET/PUT /api/financial/service-fees/:sourceType`, view/manage-gated the same as the rest of
+    Financial) — one editable row per `billing_statements.source_type`
+    (`animal_bite`/`consultation`/`manual`), seeded at ₱0 in its migration. This is a deliberate
+    "fee per service type" scope decision, not per-doctor: the same configured fee applies
+    regardless of which doctor actually performed the service. Verified with a real
+    inventory-tracked dose (₱150 cost), a ₱1,000 paid animal-bite statement, and a ₱300
+    animal-bite doctor's fee producing a ₱550 net row — see `tests/financial.test.js`.
 - **Daily Activity Report** (Phase 3, no doc spec): `GET /api/reports/daily-activity?date=YYYY-MM-DD`
   (`reports.view`, Management **and** Admin by default — unlike financial data). Returns
   operational counts only (new patients, animal-bite visits/consultations/appointments by status,

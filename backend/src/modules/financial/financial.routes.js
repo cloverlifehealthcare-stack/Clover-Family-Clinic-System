@@ -12,7 +12,10 @@ router.post('/expenses', requirePermission('financial.manage'), controller.creat
 router.post('/expenses/:id/void', requirePermission('financial.manage'), controller.voidExpense);
 
 router.get('/sales-journal', requirePermission('financial.view'), controller.getSalesJournal);
-router.get('/sales-ledger', requirePermission('financial.view'), controller.getSalesLedger);
+router.get('/purchases', requirePermission('financial.view'), controller.getPurchases);
 router.get('/summary', requirePermission('financial.view'), controller.getSummary);
+
+router.get('/service-fees', requirePermission('financial.view'), controller.listServiceFees);
+router.put('/service-fees/:sourceType', requirePermission('financial.manage'), controller.updateServiceFee);
 
 module.exports = router;

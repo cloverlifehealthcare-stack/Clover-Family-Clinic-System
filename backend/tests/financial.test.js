@@ -91,7 +91,7 @@ describe('expenses', () => {
   });
 });
 
-describe('sales journal / ledger / summary', () => {
+describe('sales journal / summary', () => {
   it('reflects a real payment inside the queried range and excludes one outside it', async () => {
     const mgmt = await loginAs('Management');
     const patientId = await createPatient();
@@ -109,15 +109,6 @@ describe('sales journal / ledger / summary', () => {
     expect(row).toBeDefined();
     expect(Number(row.amount_paid)).toBe(750);
     expect(row.patient_name).toMatch(/Fin/);
-
-    const ledger = await request(app)
-      .get('/api/financial/sales-ledger')
-      .query({ startDate: today, endDate: today })
-      .set('Authorization', `Bearer ${mgmt}`);
-    expect(ledger.status).toBe(200);
-    expect(ledger.body).toHaveLength(1);
-    expect(ledger.body[0].date.slice(0, 10)).toBe(today);
-    expect(ledger.body[0].totalAmount).toBeGreaterThanOrEqual(750);
 
     const summary = await request(app)
       .get('/api/financial/summary')
@@ -153,6 +144,152 @@ describe('sales journal / ledger / summary', () => {
       .set('Authorization', `Bearer ${mgmt}`);
     expect(summary.status).toBe(200);
     expect(summary.body.netProfit).toBe(round2(summary.body.totalRevenue - summary.body.totalExpenses));
+  });
+});
+
+// Creates a Category III animal-bite record, receives an inventory batch with a known unit
+// cost, and administers one dose against that tracked batch — the fixture getPurchases's cost-
+// of-goods lookup (getAnimalBiteCostOfGoods) is meant to pick up.
+async function createAnimalBiteRecordWithCostedDose(unitCost) {
+  const mgmt = await loginAs('Management');
+  const nurse = await loginAs('Nurse');
+  const doctor = await loginAs('Doctor');
+
+  const patientRes = await request(app)
+    .post('/api/patients')
+    .set('Authorization', `Bearer ${mgmt}`)
+    .send({ firstName: 'Purch', lastName: `Test-${Date.now()}-${Math.random()}`, dateOfBirth: '1990-01-01' });
+
+  const item = await request(app)
+    .post('/api/inventory')
+    .set('Authorization', `Bearer ${nurse}`)
+    .send({ name: `PVRV-${Date.now()}`, category: 'vaccine', unit: 'vial', reorderThreshold: 5 });
+  const batch = await request(app)
+    .post(`/api/inventory/${item.body.id}/batches`)
+    .set('Authorization', `Bearer ${nurse}`)
+    .send({ batchLotNumber: `LOT-${Date.now()}`, quantityReceived: 5, unitCost });
+  const batchId = batch.body.batches[0].id;
+
+  const record = await request(app)
+    .post('/api/animal-bite-records')
+    .set('Authorization', `Bearer ${nurse}`)
+    .send({
+      patientId: patientRes.body.id,
+      visitDate: todayDateString(),
+      dateOfExposure: todayDateString(),
+      animalType: 'Dog',
+      biteLocation: 'Hand',
+      woundDescription: 'Puncture wound',
+      vitalSigns: { bp: '120/80', temp: '36.7', pulse: '80', respRate: '18', weight: '70' },
+    });
+  await request(app)
+    .patch(`/api/animal-bite-records/${record.body.id}/diagnosis`)
+    .set('Authorization', `Bearer ${doctor}`)
+    .send({ exposureCategory: 'III', treatmentDecision: 'PEP + RIG' });
+  await request(app)
+    .post(`/api/animal-bite-records/${record.body.id}/doses`)
+    .set('Authorization', `Bearer ${nurse}`)
+    .send({ doseNumber: 0, vaccineName: 'PVRV', inventoryBatchId: batchId, administerNow: true });
+
+  return { mgmt, patientId: patientRes.body.id, recordId: record.body.id };
+}
+
+describe('Purchases report and service fees', () => {
+  it('nets sales against cost-of-goods (from an inventory-tracked dose) and the configured doctor fee', async () => {
+    const { mgmt, patientId, recordId } = await createAnimalBiteRecordWithCostedDose(150);
+    const today = todayDateString();
+
+    const statement = await request(app)
+      .post('/api/billing/statements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({
+        patientId,
+        sourceType: 'animal_bite',
+        sourceId: recordId,
+        items: [{ description: 'Animal bite treatment', quantity: 1, unitPrice: 1000 }],
+      });
+    await request(app)
+      .post(`/api/billing/statements/${statement.body.id}/payments`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ amountPaid: 1000, paymentMethod: 'cash', orNumber: `OR-${Date.now()}-ab` });
+
+    const feeUpdate = await request(app)
+      .put('/api/financial/service-fees/animal_bite')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ doctorFee: 300 });
+    expect(feeUpdate.status).toBe(200);
+    expect(Number(feeUpdate.body.doctor_fee)).toBe(300);
+
+    const purchases = await request(app)
+      .get('/api/financial/purchases')
+      .query({ startDate: today, endDate: today })
+      .set('Authorization', `Bearer ${mgmt}`);
+    expect(purchases.status).toBe(200);
+    const row = purchases.body.find((r) => r.statementId === statement.body.id);
+    expect(row).toBeDefined();
+    expect(row.patientName).toMatch(/Purch/);
+    expect(row.salesAmount).toBe(1000);
+    expect(row.costOfGoods).toBe(150);
+    expect(row.doctorFee).toBe(300);
+    expect(row.netAmount).toBe(550);
+  });
+
+  it('defaults cost of goods to 0 for a manual charge (no inventory consumption to attribute)', async () => {
+    const mgmt = await loginAs('Management');
+    const patientId = await createPatient();
+    const today = todayDateString();
+
+    const statementId = await createPaidStatement(mgmt, patientId, 500, `OR-${Date.now()}-manual`);
+
+    const purchases = await request(app)
+      .get('/api/financial/purchases')
+      .query({ startDate: today, endDate: today })
+      .set('Authorization', `Bearer ${mgmt}`);
+    const row = purchases.body.find((r) => r.statementId === statementId);
+    expect(row).toBeDefined();
+    expect(row.sourceType).toBe('manual');
+    expect(row.costOfGoods).toBe(0);
+    expect(row.netAmount).toBe(row.salesAmount - row.doctorFee);
+  });
+
+  it('lists the three seeded service fee rows', async () => {
+    const mgmt = await loginAs('Management');
+    const res = await request(app).get('/api/financial/service-fees').set('Authorization', `Bearer ${mgmt}`);
+    expect(res.status).toBe(200);
+    expect(res.body.map((r) => r.source_type)).toEqual(['animal_bite', 'consultation', 'manual']);
+  });
+
+  it('Management can update a service fee; Admin cannot (no financial.manage by default)', async () => {
+    const admin = await loginAs('Admin');
+    const rejected = await request(app)
+      .put('/api/financial/service-fees/consultation')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ doctorFee: 250 });
+    expect(rejected.status).toBe(403);
+
+    const mgmt = await loginAs('Management');
+    const accepted = await request(app)
+      .put('/api/financial/service-fees/consultation')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ doctorFee: 250 });
+    expect(accepted.status).toBe(200);
+    expect(Number(accepted.body.doctor_fee)).toBe(250);
+  });
+
+  it('rejects an unknown sourceType and a negative doctorFee', async () => {
+    const mgmt = await loginAs('Management');
+
+    const badType = await request(app)
+      .put('/api/financial/service-fees/not-a-type')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ doctorFee: 100 });
+    expect(badType.status).toBe(400);
+
+    const badFee = await request(app)
+      .put('/api/financial/service-fees/consultation')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ doctorFee: -50 });
+    expect(badFee.status).toBe(400);
   });
 });
 

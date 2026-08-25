@@ -19,7 +19,8 @@ export function FinancialPage() {
   const [endDate, setEndDate] = useState(todayDateString());
   const [summary, setSummary] = useState(null);
   const [journal, setJournal] = useState([]);
-  const [ledger, setLedger] = useState([]);
+  const [purchases, setPurchases] = useState([]);
+  const [serviceFees, setServiceFees] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [voidReason, setVoidReason] = useState({});
   const [loading, setLoading] = useState(true);
@@ -33,14 +34,16 @@ export function FinancialPage() {
     Promise.all([
       financialApi.getSummary({ startDate, endDate }),
       financialApi.getSalesJournal({ startDate, endDate }),
-      financialApi.getSalesLedger({ startDate, endDate }),
+      financialApi.getPurchases({ startDate, endDate }),
       financialApi.listExpenses({ startDate, endDate }),
+      financialApi.listServiceFees(),
     ])
-      .then(([s, j, l, e]) => {
+      .then(([s, j, p, e, f]) => {
         setSummary(s);
         setJournal(j);
-        setLedger(l);
+        setPurchases(p);
         setExpenses(e);
+        setServiceFees(f);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -52,8 +55,8 @@ export function FinancialPage() {
     <div>
       <h1>Financial Management</h1>
       <p className="page-description">
-        Sales Journal and Sales Ledger follow the BIR Manual Books of Accounts columnar format for a
-        Non-VAT (Percentage Tax) service business, generated from actual recorded payments and expenses.
+        Sales Journal follows the BIR Manual Books of Accounts columnar format for a Non-VAT (Percentage Tax)
+        service business, generated from actual recorded payments and expenses.
         <strong> Pending your accountant/bookkeeper's sign-off before these are treated as your official books.</strong>
       </p>
 
@@ -130,32 +133,44 @@ export function FinancialPage() {
           </section>
 
           <section className="record-section">
-            <h2>Sales Ledger</h2>
+            <h2>Purchases</h2>
+            <p className="page-description">
+              Sales per patient, less the cost of goods (vaccines/RIG actually consumed, from Inventory) and the
+              doctor's fee for that service type. Doctor's fee is a fixed amount per service type, not per doctor —
+              set it below under Service Fee Options.
+            </p>
             <table className="table">
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Transactions</th>
-                  <th>Total Sales</th>
-                  <th>Running Total</th>
+                  <th>Patient</th>
+                  <th>Service</th>
+                  <th>Sales</th>
+                  <th>Cost of Goods</th>
+                  <th>Doctor's Fee</th>
+                  <th>Net</th>
                 </tr>
               </thead>
               <tbody>
-                {ledger.map((row) => (
-                  <tr key={row.date}>
+                {purchases.map((row) => (
+                  <tr key={row.statementId}>
                     <td>{new Date(row.date).toLocaleDateString()}</td>
-                    <td>{row.transactionCount}</td>
-                    <td>₱{row.totalAmount.toFixed(2)}</td>
-                    <td>₱{row.runningTotal.toFixed(2)}</td>
+                    <td>{row.patientName}</td>
+                    <td>{row.sourceType.replace('_', ' ')}</td>
+                    <td>₱{row.salesAmount.toFixed(2)}</td>
+                    <td>₱{row.costOfGoods.toFixed(2)}</td>
+                    <td>₱{row.doctorFee.toFixed(2)}</td>
+                    <td>₱{row.netAmount.toFixed(2)}</td>
                   </tr>
                 ))}
-                {ledger.length === 0 && (
+                {purchases.length === 0 && (
                   <tr>
-                    <td colSpan={4}>No sales recorded in this range.</td>
+                    <td colSpan={7}>No sales recorded in this range.</td>
                   </tr>
                 )}
               </tbody>
             </table>
+            <ServiceFeeOptions fees={serviceFees} canManage={canManage} onUpdated={reload} />
           </section>
 
           <section className="record-section">
@@ -219,6 +234,93 @@ export function FinancialPage() {
           </section>
         </>
       )}
+    </div>
+  );
+}
+
+const SOURCE_TYPE_LABELS = {
+  animal_bite: 'Animal Bite',
+  consultation: 'Consultation',
+  manual: 'Manual Charge',
+};
+
+function ServiceFeeOptions({ fees, canManage, onUpdated }) {
+  const [drafts, setDrafts] = useState({});
+  const [savingType, setSavingType] = useState(null);
+  const [error, setError] = useState(null);
+
+  function draftFor(sourceType, doctorFee) {
+    return drafts[sourceType] ?? String(Number(doctorFee));
+  }
+
+  async function save(sourceType) {
+    setError(null);
+    setSavingType(sourceType);
+    try {
+      await financialApi.updateServiceFee(sourceType, Number(drafts[sourceType]));
+      setDrafts((d) => {
+        const next = { ...d };
+        delete next[sourceType];
+        return next;
+      });
+      onUpdated();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingType(null);
+    }
+  }
+
+  return (
+    <div className="record-section" style={{ marginTop: '1.5rem' }}>
+      <h3>Service Fee Options</h3>
+      <p className="page-description">
+        Doctor's fee per service type, applied to the Purchases report above regardless of which doctor performed
+        the service. Cost of Goods is not set here — it's computed automatically from the vaccine/RIG batches
+        actually used, via Inventory.
+      </p>
+      {error && <div className="form-error">{error}</div>}
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Service Type</th>
+            <th>Doctor's Fee</th>
+            {canManage && <th />}
+          </tr>
+        </thead>
+        <tbody>
+          {fees.map((fee) => (
+            <tr key={fee.source_type}>
+              <td>{SOURCE_TYPE_LABELS[fee.source_type] || fee.source_type}</td>
+              <td>
+                {canManage ? (
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={draftFor(fee.source_type, fee.doctor_fee)}
+                    onChange={(e) => setDrafts({ ...drafts, [fee.source_type]: e.target.value })}
+                    style={{ width: '8rem' }}
+                  />
+                ) : (
+                  `₱${Number(fee.doctor_fee).toFixed(2)}`
+                )}
+              </td>
+              {canManage && (
+                <td>
+                  <button
+                    type="button"
+                    disabled={savingType === fee.source_type}
+                    onClick={() => save(fee.source_type)}
+                  >
+                    Save
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

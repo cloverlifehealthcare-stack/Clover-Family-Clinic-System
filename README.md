@@ -34,6 +34,14 @@ live under a separate `reports.view` permission — Management and Admin both ge
 unlike `financial.view`/`financial.manage`, which stay Management-only per §3.2's rule that a
 staff member (Admin included) can't see profit reports without an individual override.
 
+**Post-launch: the Sales Ledger was replaced with a Purchases report.** At the clinic's request,
+the daily-cash-total Sales Ledger was redesigned into a per-patient profitability report: one row
+per billing statement showing sales less cost of goods (vaccines/RIG actually consumed against a
+tracked Inventory batch, looked up automatically — no manual entry) and doctor's fee (a fixed
+amount per service type — animal bite / consultation / manual — configurable on the page itself,
+the same fee regardless of which doctor performed it). See `backend/README.md` and
+`frontend/README.md` for the full design rationale and verification notes.
+
 **Phase 4 is nearly complete — the Full Audit Log UI, the Patient Portal, and the reporting half
 of Advanced Reports are all done.** Per §2, Phase 4 also includes a backup mechanism, not built
 (a hosting decision requiring real cloud infrastructure, not something buildable without your

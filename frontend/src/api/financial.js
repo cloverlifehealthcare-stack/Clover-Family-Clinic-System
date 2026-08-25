@@ -9,8 +9,16 @@ export function getSalesJournal(range) {
   return api.get(`/financial/sales-journal?${rangeQuery(range)}`);
 }
 
-export function getSalesLedger(range) {
-  return api.get(`/financial/sales-ledger?${rangeQuery(range)}`);
+export function getPurchases(range) {
+  return api.get(`/financial/purchases?${rangeQuery(range)}`);
+}
+
+export function listServiceFees() {
+  return api.get('/financial/service-fees');
+}
+
+export function updateServiceFee(sourceType, doctorFee) {
+  return api.put(`/financial/service-fees/${sourceType}`, { doctorFee });
 }
 
 export function getSummary(range) {

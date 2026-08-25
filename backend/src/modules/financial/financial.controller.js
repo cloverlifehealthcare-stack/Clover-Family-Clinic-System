@@ -36,12 +36,37 @@ const getSalesJournal = asyncHandler(async (req, res) => {
   res.json(await financialService.getSalesJournal(req.query));
 });
 
-const getSalesLedger = asyncHandler(async (req, res) => {
-  res.json(await financialService.getSalesLedger(req.query));
+const getPurchases = asyncHandler(async (req, res) => {
+  res.json(await financialService.getPurchases(req.query));
 });
 
 const getSummary = asyncHandler(async (req, res) => {
   res.json(await financialService.getSummary(req.query));
 });
 
-module.exports = { createExpense, voidExpense, listExpenses, getSalesJournal, getSalesLedger, getSummary };
+const listServiceFees = asyncHandler(async (req, res) => {
+  res.json(await financialService.listServiceFees());
+});
+
+const updateServiceFee = asyncHandler(async (req, res) => {
+  if (req.body.doctorFee === undefined || req.body.doctorFee === null || req.body.doctorFee === '') {
+    throw new ApiError(400, 'doctorFee is required.');
+  }
+  const fee = await financialService.updateServiceFee(req.params.sourceType, {
+    doctorFee: req.body.doctorFee,
+    actingUserId: req.user.id,
+    ipAddress: req.ip,
+  });
+  res.json(fee);
+});
+
+module.exports = {
+  createExpense,
+  voidExpense,
+  listExpenses,
+  getSalesJournal,
+  getPurchases,
+  getSummary,
+  listServiceFees,
+  updateServiceFee,
+};

@@ -3,6 +3,7 @@ const auditLog = require('../../services/auditLog.service');
 const ApiError = require('../../utils/ApiError');
 
 const EXPENSE_CATEGORIES = ['supplies', 'utilities', 'rent', 'salaries', 'equipment', 'maintenance', 'other'];
+const SERVICE_FEE_SOURCE_TYPES = ['animal_bite', 'consultation', 'manual'];
 
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -127,32 +128,148 @@ async function getSalesJournal({ startDate, endDate }) {
     .orderBy('payments.paid_at');
 }
 
-// Sales Ledger: the same payments, grouped into daily totals with a running cumulative
-// balance across the period — the summary book, not the transaction-level detail.
-async function getSalesLedger({ startDate, endDate }) {
+async function listServiceFees() {
+  return db('service_fees').select('source_type', 'doctor_fee', 'updated_at').orderBy('source_type');
+}
+
+async function updateServiceFee(sourceType, { doctorFee, actingUserId, ipAddress }) {
+  if (!SERVICE_FEE_SOURCE_TYPES.includes(sourceType)) {
+    throw new ApiError(400, `sourceType must be one of: ${SERVICE_FEE_SOURCE_TYPES.join(', ')}`);
+  }
+  const numericFee = Number(doctorFee);
+  if (!Number.isFinite(numericFee) || numericFee < 0) {
+    throw new ApiError(400, 'doctorFee must be a non-negative number.');
+  }
+
+  const before = await db('service_fees').where({ source_type: sourceType }).first();
+  await db('service_fees').where({ source_type: sourceType }).update({
+    doctor_fee: round2(numericFee),
+    updated_by: actingUserId,
+    updated_at: db.fn.now(),
+  });
+
+  await auditLog.write({
+    userId: actingUserId,
+    action: 'financial.service_fee_update',
+    entityType: 'service_fee',
+    entityId: sourceType,
+    oldValue: { doctorFee: before ? Number(before.doctor_fee) : null },
+    newValue: { doctorFee: numericFee },
+    ipAddress,
+  });
+
+  return db('service_fees').where({ source_type: sourceType }).first();
+}
+
+/**
+ * Sums the unit_cost of every inventory batch actually consumed (administered doses + RIG,
+ * both linked to a tracked batch) for a set of animal_bite_records. Doses/RIG given using the
+ * free-text batch_lot_number instead of a tracked inventoryBatchId contribute nothing here —
+ * there's no cost to look up for those, the same "purely additive, not required" trade-off
+ * noted when that FK was added (see the linking migration's comment).
+ */
+async function getAnimalBiteCostOfGoods(animalBiteRecordIds) {
+  if (animalBiteRecordIds.length === 0) {
+    return new Map();
+  }
+
+  const [doseCosts, rigCosts] = await Promise.all([
+    db('abc_treatment_doses')
+      .join('inventory_batches', 'inventory_batches.id', 'abc_treatment_doses.inventory_batch_id')
+      .whereIn('abc_treatment_doses.animal_bite_record_id', animalBiteRecordIds)
+      .andWhere('abc_treatment_doses.status', 'administered')
+      .select('abc_treatment_doses.animal_bite_record_id as record_id', 'inventory_batches.unit_cost'),
+    db('abc_rig_administrations')
+      .join('inventory_batches', 'inventory_batches.id', 'abc_rig_administrations.inventory_batch_id')
+      .whereIn('abc_rig_administrations.animal_bite_record_id', animalBiteRecordIds)
+      .select('abc_rig_administrations.animal_bite_record_id as record_id', 'inventory_batches.unit_cost'),
+  ]);
+
+  const costByRecord = new Map();
+  for (const row of [...doseCosts, ...rigCosts]) {
+    const current = costByRecord.get(row.record_id) || 0;
+    costByRecord.set(row.record_id, round2(current + Number(row.unit_cost || 0)));
+  }
+  return costByRecord;
+}
+
+/**
+ * "Purchases" (formerly Sales Ledger — renamed and redesigned, not just relabeled, per a
+ * direct request): per-patient sale profitability, not a daily cash-flow total. One row per
+ * billing statement (not per payment, unlike Sales Journal) — a statement can have several
+ * partial payments, and attributing the statement's full cost of goods/doctor's fee to *every*
+ * one of those payments would double-count both figures. A statement is included if it has at
+ * least one active payment with paid_at in [startDate, endDate]; its "sales" figure is the
+ * statement's full amount collected to date (all active payments, not just the ones inside this
+ * range) — the simplest option that still avoids double-counting when the same statement is
+ * paid off across more than one reporting period, at the cost of that revenue amount not being
+ * strictly scoped to the date range in the rare case a statement is paid across periods.
+ *
+ * Cost of goods is only ever non-zero for animal_bite statements with inventory-tracked doses/
+ * RIG (see getAnimalBiteCostOfGoods) — consultations and manual charges don't have equivalent
+ * per-visit inventory consumption tracked anywhere in this system, so their cost of goods is
+ * always 0, not a missing/unknown value. Doctor's fee comes from service_fees, keyed by the
+ * statement's source_type per the "fee per service type" scope decision (same fee regardless of
+ * which doctor actually performed the service).
+ */
+async function getPurchases({ startDate, endDate }) {
   requireDateRange(startDate, endDate);
-  const rows = await db('payments')
+
+  const statementIds = await db('payments')
+    .join('billing_statements', 'billing_statements.id', 'payments.billing_statement_id')
     .where('payments.status', 'active')
     .whereRaw('payments.paid_at::date >= ?', [startDate])
     .whereRaw('payments.paid_at::date <= ?', [endDate])
-    .select(
-      db.raw('payments.paid_at::date as sale_date'),
-      db.raw('count(*) as transaction_count'),
-      db.raw('sum(payments.amount_paid) as total_amount')
-    )
-    .groupByRaw('payments.paid_at::date')
-    .orderBy('sale_date');
+    .distinct('billing_statements.id')
+    .pluck('billing_statements.id');
 
-  let running = 0;
-  return rows.map((row) => {
-    running = round2(running + Number(row.total_amount));
-    return {
-      date: row.sale_date,
-      transactionCount: Number(row.transaction_count),
-      totalAmount: round2(Number(row.total_amount)),
-      runningTotal: running,
-    };
-  });
+  if (statementIds.length === 0) {
+    return [];
+  }
+
+  const [statements, fees] = await Promise.all([
+    db('billing_statements')
+      .join('patients', 'patients.id', 'billing_statements.patient_id')
+      .whereIn('billing_statements.id', statementIds)
+      .select(
+        'billing_statements.id',
+        'billing_statements.source_type',
+        'billing_statements.source_id',
+        'billing_statements.created_at',
+        db.raw("patients.first_name || ' ' || patients.last_name as patient_name")
+      ),
+    db('service_fees').select('source_type', 'doctor_fee'),
+  ]);
+
+  const [paidTotals, costByRecord] = await Promise.all([
+    db('payments')
+      .whereIn('billing_statement_id', statementIds)
+      .andWhere('status', 'active')
+      .groupBy('billing_statement_id')
+      .select('billing_statement_id', db.raw('sum(amount_paid) as total_paid')),
+    getAnimalBiteCostOfGoods(statements.filter((s) => s.source_type === 'animal_bite').map((s) => s.source_id)),
+  ]);
+
+  const paidByStatement = new Map(paidTotals.map((row) => [row.billing_statement_id, Number(row.total_paid)]));
+  const feeByType = new Map(fees.map((f) => [f.source_type, Number(f.doctor_fee)]));
+
+  return statements
+    .map((s) => {
+      const salesAmount = round2(paidByStatement.get(s.id) || 0);
+      const costOfGoods = s.source_type === 'animal_bite' ? round2(costByRecord.get(s.source_id) || 0) : 0;
+      const doctorFee = round2(feeByType.get(s.source_type) || 0);
+      return {
+        statementId: s.id,
+        date: s.created_at,
+        patientName: s.patient_name,
+        sourceType: s.source_type,
+        salesAmount,
+        costOfGoods,
+        doctorFee,
+        netAmount: round2(salesAmount - costOfGoods - doctorFee),
+      };
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
 async function getSummary({ startDate, endDate }) {
@@ -176,10 +293,13 @@ async function getSummary({ startDate, endDate }) {
 
 module.exports = {
   EXPENSE_CATEGORIES,
+  SERVICE_FEE_SOURCE_TYPES,
   createExpense,
   voidExpense,
   listExpenses,
   getSalesJournal,
-  getSalesLedger,
+  getPurchases,
   getSummary,
+  listServiceFees,
+  updateServiceFee,
 };
