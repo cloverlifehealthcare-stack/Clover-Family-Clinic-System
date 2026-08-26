@@ -34,19 +34,21 @@ live under a separate `reports.view` permission — Management and Admin both ge
 unlike `financial.view`/`financial.manage`, which stay Management-only per §3.2's rule that a
 staff member (Admin included) can't see profit reports without an individual override.
 
-**Post-launch: the Sales Ledger was replaced with a Purchases report,** later reworked again at
-the clinic's request to price things more accurately. At the clinic's request, the daily-cash-
-total Sales Ledger was first redesigned into a per-patient profitability report: one row per
-billing statement showing sales less cost of goods and doctor's fee. A **Cash Disbursement**
+**Post-launch: the Sales Ledger was replaced with a Purchases report,** which then went through
+two more rounds of correction as the clinic's actual financial practices became clearer. First,
+the daily-cash-total Sales Ledger was redesigned into a per-patient profitability report: one row
+per billing statement showing sales less cost of goods and doctor's fee. A **Cash Disbursement**
 section was added to the same page in the same pass — a simple date/particulars/amount/given-to
 record with the same void-not-delete pattern as Expenses, for cash paid out that isn't a
-categorized operating expense. Cost of goods and doctor's fee then went through a second
-redesign: cost of goods now comes from a Management-editable "current cost" set per vaccine
-(Vaccine Cost Options), rather than a batch's historical purchase price; doctor's fee now comes
-from a fee set per individual doctor (Doctor's Fee Options), applied automatically based on
-whichever doctor actually performed that visit — replacing the original flat fee per visit type.
-See `backend/README.md` and `frontend/README.md` for the full design rationale and verification
-notes.
+categorized operating expense. Cost of goods was then corrected to come from a Management-
+editable "current cost" set per vaccine (Vaccine Cost Options), rather than a batch's historical
+purchase price — populated with the clinic's real vaccine list and actual supplier pricing.
+Doctor's fee went through two attempts (first a flat fee per visit type, then a fee per
+individual doctor) before being **removed from Purchases entirely**: the clinic pays doctors a
+variable daily amount based on hours worked or patients seen, not a fixed rate attributable to
+one visit or one doctor, so it's tracked purely through Cash Disbursement instead — which already
+reduces overall Net Profit in the Summary, just not allocated per patient. See `backend/README.md`
+and `frontend/README.md` for the full design rationale and verification notes.
 
 **Phase 4 is nearly complete — the Full Audit Log UI, the Patient Portal, and the reporting half
 of Advanced Reports are all done.** Per §2, Phase 4 also includes a backup mechanism, not built

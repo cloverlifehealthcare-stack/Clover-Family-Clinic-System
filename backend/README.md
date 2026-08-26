@@ -159,35 +159,35 @@ exists in `tests/billing.test.js`).
   audit reasons.
   - **Purchases** (post-launch redesign of the original Sales Ledger, at the clinic's explicit
     request — not a relabel, the shape changed): one row per billing statement (not per payment,
-    unlike the journal), showing sales less cost of goods less doctor's fee. A statement is
-    included if it has at least one active payment with `paid_at` in the queried range; its sales
-    figure is the statement's full amount collected to date (all active payments, not just the
-    ones inside the range) — this avoids double-counting cost of goods/doctor's fee across partial
-    payments or across reporting periods, at the cost of not being strictly date-scoped in the
-    rare case a statement is paid off across more than one period. Cost of goods is looked up
-    automatically, never entered manually: `getAnimalBiteCostOfGoods` in
-    `src/modules/financial/financial.service.js` sums `inventory_items.current_cost` for every
-    administered dose/RIG on the statement's animal-bite record that was linked to a tracked batch
-    (`inventoryBatchId` at administration time — see Inventory below, joined through
-    `inventory_batches` to the item); doses given against a free-text `batchLotNumber` instead
-    contribute nothing, since there's no item to look a cost up for. Consultation and manual
-    charges always show 0 cost of goods — there's no equivalent per-visit inventory consumption
-    tracked for those. Doctor's fee comes from `doctor_fees` (`GET/PUT
-    /api/financial/doctor-fees/:userId`, view/manage-gated the same as the rest of Financial) —
-    keyed by the *specific doctor* who recorded the diagnosis on that animal_bite_record/
-    consultation (its existing `doctor_id`), not a flat per-visit-type default; a doctor with no
-    row yet is treated as ₱0. Manual charges have no clinical record to attribute a doctor to, so
-    their doctor's fee is always 0. Verified with a real inventory-tracked dose (vaccine item's
-    `current_cost` set to ₱220), a ₱1,500 paid animal-bite statement, and that visit's diagnosing
-    doctor's fee set to ₱350, producing a ₱930 net row — see `tests/financial.test.js`.
-    (Post-launch: this replaced an earlier `service_fees` table — one flat fee per
-    `billing_statements.source_type` regardless of which doctor performed the service — dropped
-    in favor of the current per-doctor model, at the clinic's explicit request; see
-    `20260826000003_drop_service_fees.js`'s comment.) Cost of goods similarly replaced looking up
-    `inventory_batches.unit_cost` (a batch's historical purchase price, requiring Management to
-    remember to enter it at every stock receipt) with `inventory_items.current_cost` — one
-    Management-editable standing figure per vaccine, updated whenever pricing changes rather than
-    re-entered per shipment (`GET/PUT /api/financial/vaccine-costs/:itemId`).
+    unlike the journal), showing sales less cost of goods. A statement is included if it has at
+    least one active payment with `paid_at` in the queried range; its sales figure is the
+    statement's full amount collected to date (all active payments, not just the ones inside the
+    range) — this avoids double-counting cost of goods across partial payments or across
+    reporting periods, at the cost of not being strictly date-scoped in the rare case a statement
+    is paid off across more than one period. Cost of goods is looked up automatically, never
+    entered manually: `getAnimalBiteCostOfGoods` in `src/modules/financial/financial.service.js`
+    sums `inventory_items.current_cost` for every administered dose/RIG on the statement's
+    animal-bite record that was linked to a tracked batch (`inventoryBatchId` at administration
+    time — see Inventory below, joined through `inventory_batches` to the item); doses given
+    against a free-text `batchLotNumber` instead contribute nothing, since there's no item to
+    look a cost up for. Consultation and manual charges always show 0 cost of goods — there's no
+    equivalent per-visit inventory consumption tracked for those.
+    `inventory_items.current_cost` replaced looking up `inventory_batches.unit_cost` (a batch's
+    historical purchase price, requiring Management to remember to enter it at every stock
+    receipt) — one Management-editable standing figure per vaccine, updated whenever pricing
+    changes rather than re-entered per shipment (`GET/PUT /api/financial/vaccine-costs/:itemId`).
+    Verified with a real inventory-tracked dose (vaccine item's `current_cost` set to ₱220) and a
+    ₱1,500 paid animal-bite statement producing an ₱1,280 net row — see `tests/financial.test.js`.
+
+    Doctor's fee deliberately does **not** appear in Purchases, after two earlier attempts at it
+    (first a flat fee per `billing_statements.source_type` via a `service_fees` table, then a fee
+    per individual doctor via a `doctor_fees` table keyed by `animal_bite_records`/
+    `consultations.doctor_id`) — both dropped once the clinic clarified doctors are actually paid
+    a variable daily amount based on hours worked or patients seen, not a fixed rate attributable
+    to a single visit or a single doctor. Doctor's fee payments are recorded as **Cash
+    Disbursement** entries instead (see below), which already net against clinic-wide
+    `netProfit` in `getSummary` — just not allocated to one specific patient visit. See
+    `20260826010001_drop_doctor_fees.js`'s comment for the full history.
   - **Cash Disbursement** (post-launch addition, at the clinic's request): `GET/POST
     /api/financial/cash-disbursements`, `POST /:id/void` (view/manage-gated the same as
     Expenses). A new `cash_disbursements` table — date, particulars, amount, given-to — separate

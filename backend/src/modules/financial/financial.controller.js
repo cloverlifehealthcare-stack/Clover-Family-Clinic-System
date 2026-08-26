@@ -90,22 +90,6 @@ const updateVaccineCost = asyncHandler(async (req, res) => {
   res.json(item);
 });
 
-const listDoctorFees = asyncHandler(async (req, res) => {
-  res.json(await financialService.listDoctorFees());
-});
-
-const updateDoctorFee = asyncHandler(async (req, res) => {
-  if (req.body.feeAmount === undefined || req.body.feeAmount === null || req.body.feeAmount === '') {
-    throw new ApiError(400, 'feeAmount is required.');
-  }
-  const fee = await financialService.updateDoctorFee(req.params.userId, {
-    feeAmount: req.body.feeAmount,
-    actingUserId: req.user.id,
-    ipAddress: req.ip,
-  });
-  res.json(fee);
-});
-
 module.exports = {
   createExpense,
   voidExpense,
@@ -118,6 +102,4 @@ module.exports = {
   getSummary,
   listVaccineCosts,
   updateVaccineCost,
-  listDoctorFees,
-  updateDoctorFee,
 };

@@ -22,7 +22,4 @@ router.get('/summary', requirePermission('financial.view'), controller.getSummar
 router.get('/vaccine-costs', requirePermission('financial.view'), controller.listVaccineCosts);
 router.put('/vaccine-costs/:itemId', requirePermission('financial.manage'), controller.updateVaccineCost);
 
-router.get('/doctor-fees', requirePermission('financial.view'), controller.listDoctorFees);
-router.put('/doctor-fees/:userId', requirePermission('financial.manage'), controller.updateDoctorFee);
-
 module.exports = router;

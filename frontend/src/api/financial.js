@@ -21,14 +21,6 @@ export function updateVaccineCost(itemId, currentCost) {
   return api.put(`/financial/vaccine-costs/${itemId}`, { currentCost });
 }
 
-export function listDoctorFees() {
-  return api.get('/financial/doctor-fees');
-}
-
-export function updateDoctorFee(userId, feeAmount) {
-  return api.put(`/financial/doctor-fees/${userId}`, { feeAmount });
-}
-
 export function getSummary(range) {
   return api.get(`/financial/summary?${rangeQuery(range)}`);
 }
