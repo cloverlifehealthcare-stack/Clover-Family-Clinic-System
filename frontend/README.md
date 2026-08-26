@@ -91,21 +91,18 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   disappeared, and Total Expenses/Net Profit recalculated to ₱0/₱800 without a page reload.
   Confirmed a Cashier (no `financial.view`) sees no Financial nav link and gets "Access denied"
   navigating there directly by URL.
-- Purchases + Service Fee Options (post-launch redesign of Sales Ledger): as Management, in a
-  real browser end to end — registered a patient through the New Patient form, created a manual
-  billing statement through Billing's "New Statement" screen (Medical Consultation, ₱300), and
-  recorded a full cash payment through the on-screen Record Payment form. Navigated to Financial
-  and confirmed the new Purchases table picked up the paid statement correctly (Sales ₱300.00,
-  Cost of Goods ₱0.00 — expected, a manual charge has no inventory consumption to attribute,
-  Doctor's Fee ₱0.00, Net ₱300.00). Edited the Manual Charge row under Service Fee Options to ₱50
-  through its inline input and Save button; after the page's reload-on-save, the Purchases row's
-  Doctor's Fee and Net recalculated live to ₱50.00/₱250.00 with no manual refresh needed. Also set
-  the Animal Bite fee to ₱300 and confirmed it persisted correctly across a reload. The
-  inventory-tracked-dose cost-of-goods path (an administered dose linked to a batch with a real
-  `unitCost` correctly reducing Purchases' Cost of Goods column) was verified at the API level in
-  `backend/tests/financial.test.js` rather than re-driven through the Animal Bite Center's full
-  diagnosis/dosing UI flow in this pass — that UI flow itself was already separately verified for
-  Inventory in the Phase 2 entry above.
+- Purchases + Vaccine Cost Options + Doctor's Fee Options (post-launch redesign of Sales Ledger,
+  later reworked again to replace the original flat-per-visit-type Service Fee Options — see
+  `backend/README.md`): as Management, in a real browser end to end — created a Doctor and a
+  Nurse staff account, registered a patient, created a vaccine Inventory item and received a
+  batch against it, created a Category III animal-bite record, recorded its diagnosis as the new
+  Doctor, and administered a dose linked to the tracked batch. Set that vaccine's current cost to
+  ₱220 under Vaccine Cost Options and that specific doctor's fee to ₱350 under Doctor's Fee
+  Options — both through their on-screen inline input + Save button, confirmed to persist via a
+  direct API read after each save. Created and paid a ₱1,500 animal-bite billing statement for
+  that record, then confirmed the Purchases table showed exactly Sales ₱1,500.00, Cost of Goods
+  ₱220.00, Doctor's Fee ₱350.00, Net ₱930.00 — proving the whole chain (vaccine → batch → dose →
+  diagnosing doctor → statement) resolves to the right numbers, not just each piece in isolation.
 - Cash Disbursement (post-launch addition): as Management, in a real browser end to end — filled
   the on-screen Record Disbursement form (Date, Particulars "Cash advance for wound-dressing
   supplies", Amount ₱750, Given To "Nurse Santos") and confirmed the new row appeared in the

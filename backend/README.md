@@ -166,19 +166,28 @@ exists in `tests/billing.test.js`).
     payments or across reporting periods, at the cost of not being strictly date-scoped in the
     rare case a statement is paid off across more than one period. Cost of goods is looked up
     automatically, never entered manually: `getAnimalBiteCostOfGoods` in
-    `src/modules/financial/financial.service.js` sums `inventory_batches.unit_cost` for every
+    `src/modules/financial/financial.service.js` sums `inventory_items.current_cost` for every
     administered dose/RIG on the statement's animal-bite record that was linked to a tracked batch
-    (`inventoryBatchId` at administration time — see Inventory below); doses given against a
-    free-text `batchLotNumber` instead contribute nothing, since there's no cost to look up.
-    Consultation and manual charges always show 0 cost of goods — there's no equivalent per-visit
-    inventory consumption tracked for those. Doctor's fee comes from the new `service_fees` table
-    (`GET/PUT /api/financial/service-fees/:sourceType`, view/manage-gated the same as the rest of
-    Financial) — one editable row per `billing_statements.source_type`
-    (`animal_bite`/`consultation`/`manual`), seeded at ₱0 in its migration. This is a deliberate
-    "fee per service type" scope decision, not per-doctor: the same configured fee applies
-    regardless of which doctor actually performed the service. Verified with a real
-    inventory-tracked dose (₱150 cost), a ₱1,000 paid animal-bite statement, and a ₱300
-    animal-bite doctor's fee producing a ₱550 net row — see `tests/financial.test.js`.
+    (`inventoryBatchId` at administration time — see Inventory below, joined through
+    `inventory_batches` to the item); doses given against a free-text `batchLotNumber` instead
+    contribute nothing, since there's no item to look a cost up for. Consultation and manual
+    charges always show 0 cost of goods — there's no equivalent per-visit inventory consumption
+    tracked for those. Doctor's fee comes from `doctor_fees` (`GET/PUT
+    /api/financial/doctor-fees/:userId`, view/manage-gated the same as the rest of Financial) —
+    keyed by the *specific doctor* who recorded the diagnosis on that animal_bite_record/
+    consultation (its existing `doctor_id`), not a flat per-visit-type default; a doctor with no
+    row yet is treated as ₱0. Manual charges have no clinical record to attribute a doctor to, so
+    their doctor's fee is always 0. Verified with a real inventory-tracked dose (vaccine item's
+    `current_cost` set to ₱220), a ₱1,500 paid animal-bite statement, and that visit's diagnosing
+    doctor's fee set to ₱350, producing a ₱930 net row — see `tests/financial.test.js`.
+    (Post-launch: this replaced an earlier `service_fees` table — one flat fee per
+    `billing_statements.source_type` regardless of which doctor performed the service — dropped
+    in favor of the current per-doctor model, at the clinic's explicit request; see
+    `20260826000003_drop_service_fees.js`'s comment.) Cost of goods similarly replaced looking up
+    `inventory_batches.unit_cost` (a batch's historical purchase price, requiring Management to
+    remember to enter it at every stock receipt) with `inventory_items.current_cost` — one
+    Management-editable standing figure per vaccine, updated whenever pricing changes rather than
+    re-entered per shipment (`GET/PUT /api/financial/vaccine-costs/:itemId`).
   - **Cash Disbursement** (post-launch addition, at the clinic's request): `GET/POST
     /api/financial/cash-disbursements`, `POST /:id/void` (view/manage-gated the same as
     Expenses). A new `cash_disbursements` table — date, particulars, amount, given-to — separate

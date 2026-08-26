@@ -19,7 +19,10 @@ router.get('/sales-journal', requirePermission('financial.view'), controller.get
 router.get('/purchases', requirePermission('financial.view'), controller.getPurchases);
 router.get('/summary', requirePermission('financial.view'), controller.getSummary);
 
-router.get('/service-fees', requirePermission('financial.view'), controller.listServiceFees);
-router.put('/service-fees/:sourceType', requirePermission('financial.manage'), controller.updateServiceFee);
+router.get('/vaccine-costs', requirePermission('financial.view'), controller.listVaccineCosts);
+router.put('/vaccine-costs/:itemId', requirePermission('financial.manage'), controller.updateVaccineCost);
+
+router.get('/doctor-fees', requirePermission('financial.view'), controller.listDoctorFees);
+router.put('/doctor-fees/:userId', requirePermission('financial.manage'), controller.updateDoctorFee);
 
 module.exports = router;

@@ -3,7 +3,7 @@ const auditLog = require('../../services/auditLog.service');
 const ApiError = require('../../utils/ApiError');
 
 const EXPENSE_CATEGORIES = ['supplies', 'utilities', 'rent', 'salaries', 'equipment', 'maintenance', 'other'];
-const SERVICE_FEE_SOURCE_TYPES = ['animal_bite', 'consultation', 'manual'];
+const VACCINE_COST_CATEGORIES = ['vaccine', 'rig'];
 
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -201,45 +201,103 @@ async function getSalesJournal({ startDate, endDate }) {
     .orderBy('payments.paid_at');
 }
 
-async function listServiceFees() {
-  return db('service_fees').select('source_type', 'doctor_fee', 'updated_at').orderBy('source_type');
+async function listVaccineCosts() {
+  return db('inventory_items')
+    .whereIn('category', VACCINE_COST_CATEGORIES)
+    .andWhere('is_active', true)
+    .select('id', 'name', 'category', 'unit', 'current_cost')
+    .orderBy('name');
 }
 
-async function updateServiceFee(sourceType, { doctorFee, actingUserId, ipAddress }) {
-  if (!SERVICE_FEE_SOURCE_TYPES.includes(sourceType)) {
-    throw new ApiError(400, `sourceType must be one of: ${SERVICE_FEE_SOURCE_TYPES.join(', ')}`);
+async function updateVaccineCost(itemId, { currentCost, actingUserId, ipAddress }) {
+  const item = await db('inventory_items').where({ id: itemId }).first();
+  if (!item) {
+    throw new ApiError(404, 'Inventory item not found.');
   }
-  const numericFee = Number(doctorFee);
-  if (!Number.isFinite(numericFee) || numericFee < 0) {
-    throw new ApiError(400, 'doctorFee must be a non-negative number.');
+  if (!VACCINE_COST_CATEGORIES.includes(item.category)) {
+    throw new ApiError(400, `Cost of goods can only be set for items in categories: ${VACCINE_COST_CATEGORIES.join(', ')}`);
+  }
+  const numericCost = Number(currentCost);
+  if (!Number.isFinite(numericCost) || numericCost < 0) {
+    throw new ApiError(400, 'currentCost must be a non-negative number.');
   }
 
-  const before = await db('service_fees').where({ source_type: sourceType }).first();
-  await db('service_fees').where({ source_type: sourceType }).update({
-    doctor_fee: round2(numericFee),
-    updated_by: actingUserId,
-    updated_at: db.fn.now(),
-  });
+  await db('inventory_items').where({ id: itemId }).update({ current_cost: round2(numericCost) });
 
   await auditLog.write({
     userId: actingUserId,
-    action: 'financial.service_fee_update',
-    entityType: 'service_fee',
-    entityId: sourceType,
-    oldValue: { doctorFee: before ? Number(before.doctor_fee) : null },
-    newValue: { doctorFee: numericFee },
+    action: 'financial.vaccine_cost_update',
+    entityType: 'inventory_item',
+    entityId: itemId,
+    oldValue: { currentCost: item.current_cost !== null ? Number(item.current_cost) : null },
+    newValue: { currentCost: numericCost },
     ipAddress,
   });
 
-  return db('service_fees').where({ source_type: sourceType }).first();
+  return db('inventory_items').where({ id: itemId }).first();
+}
+
+async function listDoctorFees() {
+  return db('users')
+    .join('roles', 'roles.id', 'users.role_id')
+    .leftJoin('doctor_fees', 'doctor_fees.user_id', 'users.id')
+    .where('roles.name', 'Doctor')
+    .andWhere('users.is_active', true)
+    .select(
+      'users.id as user_id',
+      'users.full_name',
+      db.raw('coalesce(doctor_fees.fee_amount, 0) as fee_amount'),
+      'doctor_fees.updated_at'
+    )
+    .orderBy('users.full_name');
+}
+
+async function updateDoctorFee(userId, { feeAmount, actingUserId, ipAddress }) {
+  const doctor = await db('users')
+    .join('roles', 'roles.id', 'users.role_id')
+    .where('users.id', userId)
+    .andWhere('roles.name', 'Doctor')
+    .select('users.id', 'users.full_name')
+    .first();
+  if (!doctor) {
+    throw new ApiError(404, 'Doctor not found.');
+  }
+  const numericFee = Number(feeAmount);
+  if (!Number.isFinite(numericFee) || numericFee < 0) {
+    throw new ApiError(400, 'feeAmount must be a non-negative number.');
+  }
+
+  const before = await db('doctor_fees').where({ user_id: userId }).first();
+  await db('doctor_fees')
+    .insert({ user_id: userId, fee_amount: round2(numericFee), updated_by: actingUserId, updated_at: db.fn.now() })
+    .onConflict('user_id')
+    .merge({ fee_amount: round2(numericFee), updated_by: actingUserId, updated_at: db.fn.now() });
+
+  await auditLog.write({
+    userId: actingUserId,
+    action: 'financial.doctor_fee_update',
+    entityType: 'doctor_fee',
+    entityId: userId,
+    oldValue: { feeAmount: before ? Number(before.fee_amount) : null },
+    newValue: { feeAmount: numericFee },
+    ipAddress,
+  });
+
+  return db('users')
+    .leftJoin('doctor_fees', 'doctor_fees.user_id', 'users.id')
+    .where('users.id', userId)
+    .select('users.id as user_id', 'users.full_name', db.raw('coalesce(doctor_fees.fee_amount, 0) as fee_amount'), 'doctor_fees.updated_at')
+    .first();
 }
 
 /**
- * Sums the unit_cost of every inventory batch actually consumed (administered doses + RIG,
- * both linked to a tracked batch) for a set of animal_bite_records. Doses/RIG given using the
- * free-text batch_lot_number instead of a tracked inventoryBatchId contribute nothing here —
- * there's no cost to look up for those, the same "purely additive, not required" trade-off
- * noted when that FK was added (see the linking migration's comment).
+ * Sums the current cost (inventory_items.current_cost, Management-editable — see
+ * updateVaccineCost) of every vaccine/RIG item actually administered (doses + RIG, both linked
+ * to a tracked batch) for a set of animal_bite_records. Uses the item's current standing cost,
+ * not the historical per-batch purchase price (inventory_batches.unit_cost) — Management sets
+ * one figure per vaccine and updates it as pricing changes, rather than needing to type a cost
+ * in every time a shipment arrives. Doses/RIG given using the free-text batch_lot_number instead
+ * of a tracked inventoryBatchId contribute nothing here — there's no item to look a cost up for.
  */
 async function getAnimalBiteCostOfGoods(animalBiteRecordIds) {
   if (animalBiteRecordIds.length === 0) {
@@ -249,21 +307,63 @@ async function getAnimalBiteCostOfGoods(animalBiteRecordIds) {
   const [doseCosts, rigCosts] = await Promise.all([
     db('abc_treatment_doses')
       .join('inventory_batches', 'inventory_batches.id', 'abc_treatment_doses.inventory_batch_id')
+      .join('inventory_items', 'inventory_items.id', 'inventory_batches.inventory_item_id')
       .whereIn('abc_treatment_doses.animal_bite_record_id', animalBiteRecordIds)
       .andWhere('abc_treatment_doses.status', 'administered')
-      .select('abc_treatment_doses.animal_bite_record_id as record_id', 'inventory_batches.unit_cost'),
+      .select('abc_treatment_doses.animal_bite_record_id as record_id', 'inventory_items.current_cost'),
     db('abc_rig_administrations')
       .join('inventory_batches', 'inventory_batches.id', 'abc_rig_administrations.inventory_batch_id')
+      .join('inventory_items', 'inventory_items.id', 'inventory_batches.inventory_item_id')
       .whereIn('abc_rig_administrations.animal_bite_record_id', animalBiteRecordIds)
-      .select('abc_rig_administrations.animal_bite_record_id as record_id', 'inventory_batches.unit_cost'),
+      .select('abc_rig_administrations.animal_bite_record_id as record_id', 'inventory_items.current_cost'),
   ]);
 
   const costByRecord = new Map();
   for (const row of [...doseCosts, ...rigCosts]) {
     const current = costByRecord.get(row.record_id) || 0;
-    costByRecord.set(row.record_id, round2(current + Number(row.unit_cost || 0)));
+    costByRecord.set(row.record_id, round2(current + Number(row.current_cost || 0)));
   }
   return costByRecord;
+}
+
+/**
+ * Looks up each doctor's configured fee (doctor_fees.fee_amount, defaulting to 0 for a doctor
+ * with no row yet) for a set of billing statements, keyed by statement id — via the doctor_id
+ * already recorded on the underlying animal_bite_record/consultation (set when that record's
+ * diagnosis was recorded). Manual charges have no clinical record to attribute a doctor to, so
+ * they're simply absent from the returned map (callers default to 0).
+ */
+async function getDoctorFeesForStatements(statements) {
+  const abRecordIds = statements.filter((s) => s.source_type === 'animal_bite').map((s) => s.source_id);
+  const consultationIds = statements.filter((s) => s.source_type === 'consultation').map((s) => s.source_id);
+
+  const [abDoctors, consultDoctors] = await Promise.all([
+    abRecordIds.length
+      ? db('animal_bite_records').whereIn('id', abRecordIds).select('id', 'doctor_id')
+      : [],
+    consultationIds.length
+      ? db('consultations').whereIn('id', consultationIds).select('id', 'doctor_id')
+      : [],
+  ]);
+
+  const doctorIdByRecord = new Map([
+    ...abDoctors.map((r) => [`animal_bite:${r.id}`, r.doctor_id]),
+    ...consultDoctors.map((r) => [`consultation:${r.id}`, r.doctor_id]),
+  ]);
+
+  const doctorIds = [...new Set([...doctorIdByRecord.values()].filter((id) => id !== null))];
+  const fees = doctorIds.length ? await db('doctor_fees').whereIn('user_id', doctorIds).select('user_id', 'fee_amount') : [];
+  const feeByDoctorId = new Map(fees.map((f) => [f.user_id, Number(f.fee_amount)]));
+
+  const feeByStatement = new Map();
+  for (const s of statements) {
+    if (s.source_type !== 'animal_bite' && s.source_type !== 'consultation') {
+      continue;
+    }
+    const doctorId = doctorIdByRecord.get(`${s.source_type}:${s.source_id}`);
+    feeByStatement.set(s.id, doctorId ? feeByDoctorId.get(doctorId) || 0 : 0);
+  }
+  return feeByStatement;
 }
 
 /**
@@ -281,9 +381,10 @@ async function getAnimalBiteCostOfGoods(animalBiteRecordIds) {
  * Cost of goods is only ever non-zero for animal_bite statements with inventory-tracked doses/
  * RIG (see getAnimalBiteCostOfGoods) — consultations and manual charges don't have equivalent
  * per-visit inventory consumption tracked anywhere in this system, so their cost of goods is
- * always 0, not a missing/unknown value. Doctor's fee comes from service_fees, keyed by the
- * statement's source_type per the "fee per service type" scope decision (same fee regardless of
- * which doctor actually performed the service).
+ * always 0, not a missing/unknown value. Doctor's fee comes from doctor_fees (see
+ * getDoctorFeesForStatements), keyed by the specific doctor who performed that service — not a
+ * flat per-source-type default — so two visits of the same type can carry different fees if a
+ * different doctor handled each one.
  */
 async function getPurchases({ startDate, endDate }) {
   requireDateRange(startDate, endDate);
@@ -300,37 +401,34 @@ async function getPurchases({ startDate, endDate }) {
     return [];
   }
 
-  const [statements, fees] = await Promise.all([
-    db('billing_statements')
-      .join('patients', 'patients.id', 'billing_statements.patient_id')
-      .whereIn('billing_statements.id', statementIds)
-      .select(
-        'billing_statements.id',
-        'billing_statements.source_type',
-        'billing_statements.source_id',
-        'billing_statements.created_at',
-        db.raw("patients.first_name || ' ' || patients.last_name as patient_name")
-      ),
-    db('service_fees').select('source_type', 'doctor_fee'),
-  ]);
+  const statements = await db('billing_statements')
+    .join('patients', 'patients.id', 'billing_statements.patient_id')
+    .whereIn('billing_statements.id', statementIds)
+    .select(
+      'billing_statements.id',
+      'billing_statements.source_type',
+      'billing_statements.source_id',
+      'billing_statements.created_at',
+      db.raw("patients.first_name || ' ' || patients.last_name as patient_name")
+    );
 
-  const [paidTotals, costByRecord] = await Promise.all([
+  const [paidTotals, costByRecord, feeByStatement] = await Promise.all([
     db('payments')
       .whereIn('billing_statement_id', statementIds)
       .andWhere('status', 'active')
       .groupBy('billing_statement_id')
       .select('billing_statement_id', db.raw('sum(amount_paid) as total_paid')),
     getAnimalBiteCostOfGoods(statements.filter((s) => s.source_type === 'animal_bite').map((s) => s.source_id)),
+    getDoctorFeesForStatements(statements),
   ]);
 
   const paidByStatement = new Map(paidTotals.map((row) => [row.billing_statement_id, Number(row.total_paid)]));
-  const feeByType = new Map(fees.map((f) => [f.source_type, Number(f.doctor_fee)]));
 
   return statements
     .map((s) => {
       const salesAmount = round2(paidByStatement.get(s.id) || 0);
       const costOfGoods = s.source_type === 'animal_bite' ? round2(costByRecord.get(s.source_id) || 0) : 0;
-      const doctorFee = round2(feeByType.get(s.source_type) || 0);
+      const doctorFee = round2(feeByStatement.get(s.id) || 0);
       return {
         statementId: s.id,
         date: s.created_at,
@@ -380,7 +478,7 @@ async function getSummary({ startDate, endDate }) {
 
 module.exports = {
   EXPENSE_CATEGORIES,
-  SERVICE_FEE_SOURCE_TYPES,
+  VACCINE_COST_CATEGORIES,
   createExpense,
   voidExpense,
   listExpenses,
@@ -390,6 +488,8 @@ module.exports = {
   getSalesJournal,
   getPurchases,
   getSummary,
-  listServiceFees,
-  updateServiceFee,
+  listVaccineCosts,
+  updateVaccineCost,
+  listDoctorFees,
+  updateDoctorFee,
 };

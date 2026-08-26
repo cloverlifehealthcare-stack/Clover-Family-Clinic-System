@@ -13,12 +13,20 @@ export function getPurchases(range) {
   return api.get(`/financial/purchases?${rangeQuery(range)}`);
 }
 
-export function listServiceFees() {
-  return api.get('/financial/service-fees');
+export function listVaccineCosts() {
+  return api.get('/financial/vaccine-costs');
 }
 
-export function updateServiceFee(sourceType, doctorFee) {
-  return api.put(`/financial/service-fees/${sourceType}`, { doctorFee });
+export function updateVaccineCost(itemId, currentCost) {
+  return api.put(`/financial/vaccine-costs/${itemId}`, { currentCost });
+}
+
+export function listDoctorFees() {
+  return api.get('/financial/doctor-fees');
+}
+
+export function updateDoctorFee(userId, feeAmount) {
+  return api.put(`/financial/doctor-fees/${userId}`, { feeAmount });
 }
 
 export function getSummary(range) {

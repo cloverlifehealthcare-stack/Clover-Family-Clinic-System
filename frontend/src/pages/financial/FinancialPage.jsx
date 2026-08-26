@@ -20,7 +20,8 @@ export function FinancialPage() {
   const [summary, setSummary] = useState(null);
   const [journal, setJournal] = useState([]);
   const [purchases, setPurchases] = useState([]);
-  const [serviceFees, setServiceFees] = useState([]);
+  const [vaccineCosts, setVaccineCosts] = useState([]);
+  const [doctorFees, setDoctorFees] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [cashDisbursements, setCashDisbursements] = useState([]);
   const [voidReason, setVoidReason] = useState({});
@@ -38,15 +39,17 @@ export function FinancialPage() {
       financialApi.getSalesJournal({ startDate, endDate }),
       financialApi.getPurchases({ startDate, endDate }),
       financialApi.listExpenses({ startDate, endDate }),
-      financialApi.listServiceFees(),
+      financialApi.listVaccineCosts(),
+      financialApi.listDoctorFees(),
       financialApi.listCashDisbursements({ startDate, endDate }),
     ])
-      .then(([s, j, p, e, f, c]) => {
+      .then(([s, j, p, e, vc, df, c]) => {
         setSummary(s);
         setJournal(j);
         setPurchases(p);
         setExpenses(e);
-        setServiceFees(f);
+        setVaccineCosts(vc);
+        setDoctorFees(df);
         setCashDisbursements(c);
       })
       .catch((err) => setError(err.message))
@@ -146,9 +149,9 @@ export function FinancialPage() {
           <section className="record-section">
             <h2>Purchases</h2>
             <p className="page-description">
-              Sales per patient, less the cost of goods (vaccines/RIG actually consumed, from Inventory) and the
-              doctor's fee for that service type. Doctor's fee is a fixed amount per service type, not per doctor —
-              set it below under Service Fee Options.
+              Sales per patient, less the cost of goods (vaccines/RIG actually consumed, priced at each vaccine's
+              current cost — set below under Vaccine Cost Options) and the fee of the doctor who actually handled
+              that visit (set below under Doctor's Fee Options).
             </p>
             <table className="table">
               <thead>
@@ -181,7 +184,8 @@ export function FinancialPage() {
                 )}
               </tbody>
             </table>
-            <ServiceFeeOptions fees={serviceFees} canManage={canManage} onUpdated={reload} />
+            <VaccineCostOptions items={vaccineCosts} canManage={canManage} onUpdated={reload} />
+            <DoctorFeeOptions doctors={doctorFees} canManage={canManage} onUpdated={reload} />
           </section>
 
           <section className="record-section">
@@ -309,87 +313,163 @@ export function FinancialPage() {
   );
 }
 
-const SOURCE_TYPE_LABELS = {
-  animal_bite: 'Animal Bite',
-  consultation: 'Consultation',
-  manual: 'Manual Charge',
-};
-
-function ServiceFeeOptions({ fees, canManage, onUpdated }) {
+function VaccineCostOptions({ items, canManage, onUpdated }) {
   const [drafts, setDrafts] = useState({});
-  const [savingType, setSavingType] = useState(null);
+  const [savingId, setSavingId] = useState(null);
   const [error, setError] = useState(null);
 
-  function draftFor(sourceType, doctorFee) {
-    return drafts[sourceType] ?? String(Number(doctorFee));
+  function draftFor(item) {
+    return drafts[item.id] ?? String(Number(item.current_cost || 0));
   }
 
-  async function save(sourceType) {
+  async function save(itemId) {
     setError(null);
-    setSavingType(sourceType);
+    setSavingId(itemId);
     try {
-      await financialApi.updateServiceFee(sourceType, Number(drafts[sourceType]));
+      await financialApi.updateVaccineCost(itemId, Number(drafts[itemId]));
       setDrafts((d) => {
         const next = { ...d };
-        delete next[sourceType];
+        delete next[itemId];
         return next;
       });
       onUpdated();
     } catch (err) {
       setError(err.message);
     } finally {
-      setSavingType(null);
+      setSavingId(null);
     }
   }
 
   return (
     <div className="record-section" style={{ marginTop: '1.5rem' }}>
-      <h3>Service Fee Options</h3>
+      <h3>Vaccine Cost Options</h3>
       <p className="page-description">
-        Doctor's fee per service type, applied to the Purchases report above regardless of which doctor performed
-        the service. Cost of Goods is not set here — it's computed automatically from the vaccine/RIG batches
-        actually used, via Inventory.
+        The current cost of goods for each vaccine/RIG item — used in the Purchases report above whenever that
+        item is administered against a tracked Inventory batch. Update this whenever your purchase cost changes;
+        it applies immediately, without needing to re-enter it each time stock is received.
       </p>
       {error && <div className="form-error">{error}</div>}
       <table className="table">
         <thead>
           <tr>
-            <th>Service Type</th>
-            <th>Doctor's Fee</th>
+            <th>Vaccine / RIG</th>
+            <th>Current Cost</th>
             {canManage && <th />}
           </tr>
         </thead>
         <tbody>
-          {fees.map((fee) => (
-            <tr key={fee.source_type}>
-              <td>{SOURCE_TYPE_LABELS[fee.source_type] || fee.source_type}</td>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <td>{item.name}</td>
               <td>
                 {canManage ? (
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={draftFor(fee.source_type, fee.doctor_fee)}
-                    onChange={(e) => setDrafts({ ...drafts, [fee.source_type]: e.target.value })}
+                    value={draftFor(item)}
+                    onChange={(e) => setDrafts({ ...drafts, [item.id]: e.target.value })}
                     style={{ width: '8rem' }}
                   />
                 ) : (
-                  `₱${Number(fee.doctor_fee).toFixed(2)}`
+                  `₱${Number(item.current_cost || 0).toFixed(2)}`
                 )}
               </td>
               {canManage && (
                 <td>
-                  <button
-                    type="button"
-                    disabled={savingType === fee.source_type}
-                    onClick={() => save(fee.source_type)}
-                  >
+                  <button type="button" disabled={savingId === item.id} onClick={() => save(item.id)}>
                     Save
                   </button>
                 </td>
               )}
             </tr>
           ))}
+          {items.length === 0 && (
+            <tr>
+              <td colSpan={canManage ? 3 : 2}>No vaccine/RIG items in Inventory yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DoctorFeeOptions({ doctors, canManage, onUpdated }) {
+  const [drafts, setDrafts] = useState({});
+  const [savingId, setSavingId] = useState(null);
+  const [error, setError] = useState(null);
+
+  function draftFor(doctor) {
+    return drafts[doctor.user_id] ?? String(Number(doctor.fee_amount || 0));
+  }
+
+  async function save(userId) {
+    setError(null);
+    setSavingId(userId);
+    try {
+      await financialApi.updateDoctorFee(userId, Number(drafts[userId]));
+      setDrafts((d) => {
+        const next = { ...d };
+        delete next[userId];
+        return next;
+      });
+      onUpdated();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  return (
+    <div className="record-section" style={{ marginTop: '1.5rem' }}>
+      <h3>Doctor's Fee Options</h3>
+      <p className="page-description">
+        The fee paid to each doctor, applied in the Purchases report above based on whichever doctor actually
+        performed that visit's diagnosis — not a flat amount per visit type.
+      </p>
+      {error && <div className="form-error">{error}</div>}
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Doctor</th>
+            <th>Fee</th>
+            {canManage && <th />}
+          </tr>
+        </thead>
+        <tbody>
+          {doctors.map((doctor) => (
+            <tr key={doctor.user_id}>
+              <td>{doctor.full_name}</td>
+              <td>
+                {canManage ? (
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={draftFor(doctor)}
+                    onChange={(e) => setDrafts({ ...drafts, [doctor.user_id]: e.target.value })}
+                    style={{ width: '8rem' }}
+                  />
+                ) : (
+                  `₱${Number(doctor.fee_amount || 0).toFixed(2)}`
+                )}
+              </td>
+              {canManage && (
+                <td>
+                  <button type="button" disabled={savingId === doctor.user_id} onClick={() => save(doctor.user_id)}>
+                    Save
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+          {doctors.length === 0 && (
+            <tr>
+              <td colSpan={canManage ? 3 : 2}>No active Doctor accounts yet.</td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

@@ -227,10 +227,18 @@ describe('sales journal / summary', () => {
   });
 });
 
-// Creates a Category III animal-bite record, receives an inventory batch with a known unit
-// cost, and administers one dose against that tracked batch — the fixture getPurchases's cost-
-// of-goods lookup (getAnimalBiteCostOfGoods) is meant to pick up.
-async function createAnimalBiteRecordWithCostedDose(unitCost) {
+// The access token is a plain HS256 JWT with `sub` set to the user id — decoding without
+// verifying is fine here since the test already trusts loginAs to have minted a valid token.
+function userIdFromToken(token) {
+  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+  return payload.sub;
+}
+
+// Creates a Category III animal-bite record, receives an inventory batch for a vaccine item,
+// and administers one dose against that tracked batch — the fixture getPurchases's cost-of-
+// goods lookup (getAnimalBiteCostOfGoods) is meant to pick up via the item's current_cost
+// (Management-set, not the batch's historical unitCost).
+async function createAnimalBiteRecordWithDose() {
   const mgmt = await loginAs('Management');
   const nurse = await loginAs('Nurse');
   const doctor = await loginAs('Doctor');
@@ -247,7 +255,7 @@ async function createAnimalBiteRecordWithCostedDose(unitCost) {
   const batch = await request(app)
     .post(`/api/inventory/${item.body.id}/batches`)
     .set('Authorization', `Bearer ${nurse}`)
-    .send({ batchLotNumber: `LOT-${Date.now()}`, quantityReceived: 5, unitCost });
+    .send({ batchLotNumber: `LOT-${Date.now()}`, quantityReceived: 5 });
   const batchId = batch.body.batches[0].id;
 
   const record = await request(app)
@@ -271,13 +279,27 @@ async function createAnimalBiteRecordWithCostedDose(unitCost) {
     .set('Authorization', `Bearer ${nurse}`)
     .send({ doseNumber: 0, vaccineName: 'PVRV', inventoryBatchId: batchId, administerNow: true });
 
-  return { mgmt, patientId: patientRes.body.id, recordId: record.body.id };
+  return { mgmt, patientId: patientRes.body.id, recordId: record.body.id, itemId: item.body.id, doctorId: userIdFromToken(doctor) };
 }
 
-describe('Purchases report and service fees', () => {
-  it('nets sales against cost-of-goods (from an inventory-tracked dose) and the configured doctor fee', async () => {
-    const { mgmt, patientId, recordId } = await createAnimalBiteRecordWithCostedDose(150);
+describe('Purchases report, vaccine costs, and doctor fees', () => {
+  it('nets sales against cost-of-goods (from the vaccine\'s current cost) and the fee of the doctor who diagnosed the case', async () => {
+    const { mgmt, patientId, recordId, itemId, doctorId } = await createAnimalBiteRecordWithDose();
     const today = todayDateString();
+
+    const costUpdate = await request(app)
+      .put(`/api/financial/vaccine-costs/${itemId}`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ currentCost: 150 });
+    expect(costUpdate.status).toBe(200);
+    expect(Number(costUpdate.body.current_cost)).toBe(150);
+
+    const feeUpdate = await request(app)
+      .put(`/api/financial/doctor-fees/${doctorId}`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ feeAmount: 300 });
+    expect(feeUpdate.status).toBe(200);
+    expect(Number(feeUpdate.body.fee_amount)).toBe(300);
 
     const statement = await request(app)
       .post('/api/billing/statements')
@@ -293,13 +315,6 @@ describe('Purchases report and service fees', () => {
       .set('Authorization', `Bearer ${mgmt}`)
       .send({ amountPaid: 1000, paymentMethod: 'cash', orNumber: `OR-${Date.now()}-ab` });
 
-    const feeUpdate = await request(app)
-      .put('/api/financial/service-fees/animal_bite')
-      .set('Authorization', `Bearer ${mgmt}`)
-      .send({ doctorFee: 300 });
-    expect(feeUpdate.status).toBe(200);
-    expect(Number(feeUpdate.body.doctor_fee)).toBe(300);
-
     const purchases = await request(app)
       .get('/api/financial/purchases')
       .query({ startDate: today, endDate: today })
@@ -314,7 +329,7 @@ describe('Purchases report and service fees', () => {
     expect(row.netAmount).toBe(550);
   });
 
-  it('defaults cost of goods to 0 for a manual charge (no inventory consumption to attribute)', async () => {
+  it('defaults cost of goods and doctor fee to 0 for a manual charge (no clinical record to attribute either to)', async () => {
     const mgmt = await loginAs('Management');
     const patientId = await createPatient();
     const today = todayDateString();
@@ -329,46 +344,141 @@ describe('Purchases report and service fees', () => {
     expect(row).toBeDefined();
     expect(row.sourceType).toBe('manual');
     expect(row.costOfGoods).toBe(0);
-    expect(row.netAmount).toBe(row.salesAmount - row.doctorFee);
+    expect(row.doctorFee).toBe(0);
+    expect(row.netAmount).toBe(row.salesAmount);
   });
 
-  it('lists the three seeded service fee rows', async () => {
+  it('defaults an unfeed doctor to 0 without requiring a pre-existing row', async () => {
+    const { mgmt, patientId, recordId } = await createAnimalBiteRecordWithDose();
+    const today = todayDateString();
+
+    const statement = await request(app)
+      .post('/api/billing/statements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ patientId, sourceType: 'animal_bite', sourceId: recordId, items: [{ description: 'Visit', quantity: 1, unitPrice: 200 }] });
+    await request(app)
+      .post(`/api/billing/statements/${statement.body.id}/payments`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ amountPaid: 200, paymentMethod: 'cash', orNumber: `OR-${Date.now()}-nofee` });
+
+    const purchases = await request(app)
+      .get('/api/financial/purchases')
+      .query({ startDate: today, endDate: today })
+      .set('Authorization', `Bearer ${mgmt}`);
+    const row = purchases.body.find((r) => r.statementId === statement.body.id);
+    expect(row.doctorFee).toBe(0);
+  });
+
+  it('lists vaccine/RIG inventory items with their current cost', async () => {
     const mgmt = await loginAs('Management');
-    const res = await request(app).get('/api/financial/service-fees').set('Authorization', `Bearer ${mgmt}`);
+    const nurse = await loginAs('Nurse');
+    await request(app)
+      .post('/api/inventory')
+      .set('Authorization', `Bearer ${nurse}`)
+      .send({ name: `Listed Vaccine ${Date.now()}`, category: 'vaccine', unit: 'vial', reorderThreshold: 5 });
+
+    const res = await request(app).get('/api/financial/vaccine-costs').set('Authorization', `Bearer ${mgmt}`);
     expect(res.status).toBe(200);
-    expect(res.body.map((r) => r.source_type)).toEqual(['animal_bite', 'consultation', 'manual']);
+    expect(res.body.every((i) => ['vaccine', 'rig'].includes(i.category))).toBe(true);
   });
 
-  it('Management can update a service fee; Admin cannot (no financial.manage by default)', async () => {
+  it('Management can update a vaccine cost; Admin cannot (no financial.manage by default)', async () => {
     const admin = await loginAs('Admin');
+    const nurse = await loginAs('Nurse');
+    const mgmt = await loginAs('Management');
+    const item = await request(app)
+      .post('/api/inventory')
+      .set('Authorization', `Bearer ${nurse}`)
+      .send({ name: `Cost Test Vaccine ${Date.now()}`, category: 'vaccine', unit: 'vial', reorderThreshold: 5 });
+
     const rejected = await request(app)
-      .put('/api/financial/service-fees/consultation')
+      .put(`/api/financial/vaccine-costs/${item.body.id}`)
       .set('Authorization', `Bearer ${admin}`)
-      .send({ doctorFee: 250 });
+      .send({ currentCost: 250 });
     expect(rejected.status).toBe(403);
 
-    const mgmt = await loginAs('Management');
     const accepted = await request(app)
-      .put('/api/financial/service-fees/consultation')
+      .put(`/api/financial/vaccine-costs/${item.body.id}`)
       .set('Authorization', `Bearer ${mgmt}`)
-      .send({ doctorFee: 250 });
+      .send({ currentCost: 250 });
     expect(accepted.status).toBe(200);
-    expect(Number(accepted.body.doctor_fee)).toBe(250);
+    expect(Number(accepted.body.current_cost)).toBe(250);
   });
 
-  it('rejects an unknown sourceType and a negative doctorFee', async () => {
+  it('rejects a vaccine cost update for a non-vaccine/RIG item and a negative cost', async () => {
     const mgmt = await loginAs('Management');
+    const nurse = await loginAs('Nurse');
+    const supplyItem = await request(app)
+      .post('/api/inventory')
+      .set('Authorization', `Bearer ${nurse}`)
+      .send({ name: `Gauze ${Date.now()}`, category: 'supply', unit: 'box', reorderThreshold: 5 });
 
-    const badType = await request(app)
-      .put('/api/financial/service-fees/not-a-type')
+    const badCategory = await request(app)
+      .put(`/api/financial/vaccine-costs/${supplyItem.body.id}`)
       .set('Authorization', `Bearer ${mgmt}`)
-      .send({ doctorFee: 100 });
-    expect(badType.status).toBe(400);
+      .send({ currentCost: 100 });
+    expect(badCategory.status).toBe(400);
+
+    const vaccineItem = await request(app)
+      .post('/api/inventory')
+      .set('Authorization', `Bearer ${nurse}`)
+      .send({ name: `Negative Cost Vaccine ${Date.now()}`, category: 'vaccine', unit: 'vial', reorderThreshold: 5 });
+    const badCost = await request(app)
+      .put(`/api/financial/vaccine-costs/${vaccineItem.body.id}`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ currentCost: -50 });
+    expect(badCost.status).toBe(400);
+  });
+
+  it('lists every active Doctor with their fee, defaulting to 0 when unset', async () => {
+    const mgmt = await loginAs('Management');
+    const doctor = await loginAs('Doctor');
+    const doctorId = userIdFromToken(doctor);
+
+    const res = await request(app).get('/api/financial/doctor-fees').set('Authorization', `Bearer ${mgmt}`);
+    expect(res.status).toBe(200);
+    const row = res.body.find((d) => d.user_id === doctorId);
+    expect(row).toBeDefined();
+    expect(Number(row.fee_amount)).toBe(0);
+  });
+
+  it('Management can update a doctor fee; Admin cannot (no financial.manage by default)', async () => {
+    const admin = await loginAs('Admin');
+    const mgmt = await loginAs('Management');
+    const doctor = await loginAs('Doctor');
+    const doctorId = userIdFromToken(doctor);
+
+    const rejected = await request(app)
+      .put(`/api/financial/doctor-fees/${doctorId}`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ feeAmount: 400 });
+    expect(rejected.status).toBe(403);
+
+    const accepted = await request(app)
+      .put(`/api/financial/doctor-fees/${doctorId}`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ feeAmount: 400 });
+    expect(accepted.status).toBe(200);
+    expect(Number(accepted.body.fee_amount)).toBe(400);
+  });
+
+  it('rejects a doctor fee update for a non-doctor user and a negative fee', async () => {
+    const mgmt = await loginAs('Management');
+    const nurse = await loginAs('Nurse');
+    const nurseId = userIdFromToken(nurse);
+    const doctor = await loginAs('Doctor');
+    const doctorId = userIdFromToken(doctor);
+
+    const badUser = await request(app)
+      .put(`/api/financial/doctor-fees/${nurseId}`)
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ feeAmount: 100 });
+    expect(badUser.status).toBe(404);
 
     const badFee = await request(app)
-      .put('/api/financial/service-fees/consultation')
+      .put(`/api/financial/doctor-fees/${doctorId}`)
       .set('Authorization', `Bearer ${mgmt}`)
-      .send({ doctorFee: -50 });
+      .send({ feeAmount: -50 });
     expect(badFee.status).toBe(400);
   });
 });
