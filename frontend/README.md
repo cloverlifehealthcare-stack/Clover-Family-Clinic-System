@@ -120,6 +120,15 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   Profit, with the Net Profit card visually highlighted); recorded a ₱250 disbursement via the
   API with no other activity in range and confirmed Summary correctly showed
   ₱0.00 − ₱0.00 − ₱250.00 = **-₱250.00**.
+- Export Reports (post-launch addition, following the same download pattern already verified for
+  Audit Log CSV export): as Management, clicked "Export Full Report" on the new Export Reports
+  section and confirmed (by intercepting `document.createElement('a')`) that it triggered a real
+  browser download with a date-ranged filename (`full-report-2026-08-01-to-2026-08-26.csv`);
+  separately fetched the same underlying endpoint directly and confirmed the CSV content itself —
+  the four Summary figures as rows plus a literal `Formula` row. Also fetched the Cash
+  Disbursement export directly and confirmed its `Particulars` column renders the human label
+  ("Doctor's Daily Fee") rather than the raw `doctors_fee` value, and that a `Reason` value
+  containing a comma ("Dr. Reyes, 6 hours") is correctly CSV-quoted.
 - Daily Activity Report (Phase 3): confirmed the page shows the same day's new-patient count via
   `newPatients`, and confirmed it deliberately carries no revenue/profit figures anywhere in the
   response — that stays under Financial Management, which is gated more narrowly. Also confirmed

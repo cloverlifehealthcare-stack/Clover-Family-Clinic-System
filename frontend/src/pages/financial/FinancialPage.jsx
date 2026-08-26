@@ -109,6 +109,8 @@ export function FinancialPage() {
             )}
           </section>
 
+          <ExportReportsSection startDate={startDate} endDate={endDate} />
+
           <section className="record-section">
             <h2>Sales Journal</h2>
             <table className="table">
@@ -308,6 +310,63 @@ export function FinancialPage() {
         </>
       )}
     </div>
+  );
+}
+
+function downloadCsv(text, filename) {
+  const blob = new Blob([text], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+const EXPORT_REPORTS = [
+  { key: 'salesJournal', label: 'Sales Journal', fetchCsv: financialApi.exportSalesJournalCsv, fileSlug: 'sales-journal' },
+  { key: 'purchases', label: 'Purchases', fetchCsv: financialApi.exportPurchasesCsv, fileSlug: 'purchases' },
+  { key: 'expenses', label: 'Expenses', fetchCsv: financialApi.exportExpensesCsv, fileSlug: 'expenses' },
+  { key: 'cashDisbursement', label: 'Cash Disbursement', fetchCsv: financialApi.exportCashDisbursementsCsv, fileSlug: 'cash-disbursement' },
+  { key: 'fullReport', label: 'Full Report (Net Profit)', fetchCsv: financialApi.exportFullReportCsv, fileSlug: 'full-report' },
+];
+
+function ExportReportsSection({ startDate, endDate }) {
+  const [exportingKey, setExportingKey] = useState(null);
+  const [error, setError] = useState(null);
+
+  async function handleExport(report) {
+    setError(null);
+    setExportingKey(report.key);
+    try {
+      const csv = await report.fetchCsv({ startDate, endDate });
+      downloadCsv(csv, `${report.fileSlug}-${startDate}-to-${endDate}.csv`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExportingKey(null);
+    }
+  }
+
+  return (
+    <section className="record-section">
+      <h2>Export Reports</h2>
+      <p className="page-description">
+        Download each report as a CSV file (opens in Excel or Google Sheets) for the date range selected above.
+        "Full Report" is the bottom-line formula: Total Revenue − Total Expenses − Total Cash Disbursement = Net
+        Profit.
+      </p>
+      {error && <div className="form-error">{error}</div>}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+        {EXPORT_REPORTS.map((report) => (
+          <button key={report.key} type="button" disabled={exportingKey === report.key} onClick={() => handleExport(report)}>
+            {exportingKey === report.key ? 'Exporting…' : `Export ${report.label}`}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

@@ -403,6 +403,78 @@ describe('Purchases report and vaccine costs', () => {
   });
 });
 
+describe('CSV exports', () => {
+  it('exports each report as CSV with the expected header row, and rejects a Cashier', async () => {
+    const mgmt = await loginAs('Management');
+    const cashier = await loginAs('Cashier');
+    const today = todayDateString();
+
+    const exports = [
+      { path: '/api/financial/sales-journal/export', header: 'Date,OR Number,Payor,Particulars,Discount,Method,Amount' },
+      { path: '/api/financial/purchases/export', header: 'Date,Patient,Service,Sales,Cost of Goods,Net' },
+      { path: '/api/financial/expenses/export', header: 'Date,Category,Description,Paid To,Amount,Status' },
+      { path: '/api/financial/cash-disbursements/export', header: 'Date,Particulars,Reason,Amount,Given To,Status' },
+      { path: '/api/financial/summary/export', header: 'Metric,Amount' },
+    ];
+
+    for (const { path, header } of exports) {
+      const res = await request(app)
+        .get(path)
+        .query({ startDate: today, endDate: today })
+        .set('Authorization', `Bearer ${mgmt}`);
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toMatch(/text\/csv/);
+      expect(res.headers['content-disposition']).toMatch(/attachment/);
+      expect(res.text.split('\n')[0]).toBe(header);
+
+      const rejected = await request(app)
+        .get(path)
+        .query({ startDate: today, endDate: today })
+        .set('Authorization', `Bearer ${cashier}`);
+      expect(rejected.status).toBe(403);
+    }
+  });
+
+  it('the full report export reflects real revenue, expenses, and cash disbursement figures', async () => {
+    const mgmt = await loginAs('Management');
+    const patientId = await createPatient();
+    const today = todayDateString();
+
+    await createPaidStatement(mgmt, patientId, 1000, `OR-${Date.now()}-export`);
+    await request(app)
+      .post('/api/financial/expenses')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ expenseDate: today, category: 'utilities', description: 'Electricity', amount: 100 });
+    await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ disbursementDate: today, category: 'doctors_fee', particulars: 'Dr. Cruz, 4 hrs', amount: 200, givenTo: 'Dr. Cruz' });
+
+    const res = await request(app)
+      .get('/api/financial/summary/export')
+      .query({ startDate: today, endDate: today })
+      .set('Authorization', `Bearer ${mgmt}`);
+    expect(res.status).toBe(200);
+    const lines = res.text.split('\n');
+    const amountOf = (label) => Number(lines.find((l) => l.startsWith(`${label},`)).split(',')[1]);
+    const totalRevenue = amountOf('Total Revenue');
+    const totalExpenses = amountOf('Total Expenses');
+    const totalCashDisbursements = amountOf('Total Cash Disbursement');
+    const netProfit = amountOf('Net Profit');
+
+    // Other tests in this file share the same test database and may add their own revenue/
+    // expenses/disbursements for "today" — only relative growth and internal consistency are
+    // checked here, not exact totals (same convention as the Summary test above).
+    expect(totalRevenue).toBeGreaterThanOrEqual(1000);
+    expect(totalExpenses).toBeGreaterThanOrEqual(100);
+    expect(totalCashDisbursements).toBeGreaterThanOrEqual(200);
+    expect(netProfit).toBe(round2(totalRevenue - totalExpenses - totalCashDisbursements));
+    expect(lines.find((l) => l.startsWith('Formula,'))).toBe(
+      'Formula,Total Revenue - Total Expenses - Total Cash Disbursement = Net Profit'
+    );
+  });
+});
+
 describe('permissions', () => {
   it('rejects a Cashier from all financial endpoints (no financial.view/financial.manage)', async () => {
     const cashier = await loginAs('Cashier');

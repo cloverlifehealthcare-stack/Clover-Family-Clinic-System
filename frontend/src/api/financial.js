@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, apiRequestText } from './client';
 
 function rangeQuery({ startDate, endDate }) {
   const params = new URLSearchParams({ startDate, endDate });
@@ -52,4 +52,24 @@ export function createCashDisbursement(input) {
 
 export function voidCashDisbursement(id, reason) {
   return api.post(`/financial/cash-disbursements/${id}/void`, { reason });
+}
+
+export function exportSalesJournalCsv(range) {
+  return apiRequestText(`/financial/sales-journal/export?${rangeQuery(range)}`, { method: 'GET' });
+}
+
+export function exportPurchasesCsv(range) {
+  return apiRequestText(`/financial/purchases/export?${rangeQuery(range)}`, { method: 'GET' });
+}
+
+export function exportExpensesCsv(range) {
+  return apiRequestText(`/financial/expenses/export?${rangeQuery(range)}`, { method: 'GET' });
+}
+
+export function exportCashDisbursementsCsv(range) {
+  return apiRequestText(`/financial/cash-disbursements/export?${rangeQuery(range)}`, { method: 'GET' });
+}
+
+export function exportFullReportCsv(range) {
+  return apiRequestText(`/financial/summary/export?${rangeQuery(range)}`, { method: 'GET' });
 }

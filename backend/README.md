@@ -202,6 +202,18 @@ exists in `tests/billing.test.js`).
     added to `netProfit = totalRevenue - totalExpenses - totalCashDisbursements` (previously just
     revenue minus expenses) — the response now also returns `totalCashDisbursements` alongside
     the existing fields, and the frontend Summary section displays it as a literal equation.
+  - **CSV Export** (post-launch addition, at the clinic's request): `GET
+    /api/financial/{sales-journal,purchases,expenses,cash-disbursements}/export` (one per
+    report) plus `GET /api/financial/summary/export` for the "full report" — all `financial.view`
+    gated, same as their list/summary counterparts. Follows the exact pattern already established
+    for `audit.service.js`'s CSV export: no library, a shared `csvEscape`/`toCsv` helper (quotes a
+    value only if it contains a comma, quote, or newline), `Content-Type: text/csv` +
+    `Content-Disposition: attachment` headers, server-side filename is fixed/generic (the
+    frontend supplies its own date-ranged filename client-side — see below). Each per-report
+    export reuses that report's existing list function rather than re-querying, so the CSV always
+    matches what's on screen. The full-report export is the four Summary figures as rows plus a
+    literal `Formula` row spelling out `Total Revenue - Total Expenses - Total Cash Disbursement =
+    Net Profit`, rather than a transaction-level report like the other four.
 - **Daily Activity Report** (Phase 3, no doc spec): `GET /api/reports/daily-activity?date=YYYY-MM-DD`
   (`reports.view`, Management **and** Admin by default — unlike financial data). Returns
   operational counts only (new patients, animal-bite visits/consultations/appointments by status,

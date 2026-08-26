@@ -5,6 +5,22 @@ const ApiError = require('../../utils/ApiError');
 const EXPENSE_CATEGORIES = ['supplies', 'utilities', 'rent', 'salaries', 'equipment', 'maintenance', 'other'];
 const VACCINE_COST_CATEGORIES = ['vaccine', 'rig'];
 const CASH_DISBURSEMENT_CATEGORIES = ['doctors_fee', 'other'];
+const CASH_DISBURSEMENT_CATEGORY_LABELS = { doctors_fee: "Doctor's Daily Fee", other: 'Other' };
+
+function csvEscape(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  if (/[",\n]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function toCsv(header, rows) {
+  return [header.join(','), ...rows.map((row) => row.map(csvEscape).join(','))].join('\n');
+}
 
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -388,6 +404,79 @@ async function getSummary({ startDate, endDate }) {
   };
 }
 
+async function exportSalesJournalCsv({ startDate, endDate }) {
+  const rows = await getSalesJournal({ startDate, endDate });
+  return toCsv(
+    ['Date', 'OR Number', 'Payor', 'Particulars', 'Discount', 'Method', 'Amount'],
+    rows.map((r) => [
+      new Date(r.paid_at).toLocaleDateString(),
+      r.or_number,
+      r.patient_name,
+      r.source_type.replace('_', ' '),
+      r.discount_type === 'none' ? '—' : r.discount_type.toUpperCase(),
+      r.payment_method,
+      Number(r.amount_paid).toFixed(2),
+    ])
+  );
+}
+
+async function exportPurchasesCsv({ startDate, endDate }) {
+  const rows = await getPurchases({ startDate, endDate });
+  return toCsv(
+    ['Date', 'Patient', 'Service', 'Sales', 'Cost of Goods', 'Net'],
+    rows.map((r) => [
+      new Date(r.date).toLocaleDateString(),
+      r.patientName,
+      r.sourceType.replace('_', ' '),
+      r.salesAmount.toFixed(2),
+      r.costOfGoods.toFixed(2),
+      r.netAmount.toFixed(2),
+    ])
+  );
+}
+
+async function exportExpensesCsv({ startDate, endDate }) {
+  const rows = await listExpenses({ startDate, endDate });
+  return toCsv(
+    ['Date', 'Category', 'Description', 'Paid To', 'Amount', 'Status'],
+    rows.map((r) => [r.expense_date, r.category, r.description, r.paid_to || '', Number(r.amount).toFixed(2), r.status])
+  );
+}
+
+async function exportCashDisbursementsCsv({ startDate, endDate }) {
+  const rows = await listCashDisbursements({ startDate, endDate });
+  return toCsv(
+    ['Date', 'Particulars', 'Reason', 'Amount', 'Given To', 'Status'],
+    rows.map((r) => [
+      r.disbursement_date,
+      CASH_DISBURSEMENT_CATEGORY_LABELS[r.category] || r.category,
+      r.particulars,
+      Number(r.amount).toFixed(2),
+      r.given_to,
+      r.status,
+    ])
+  );
+}
+
+// The "full report": the same Total Revenue/Expenses/Cash Disbursement/Net Profit figures shown
+// on the Summary section, as a downloadable CSV with the formula spelled out as its own row —
+// requested separately from the four per-section exports above, as the one-file bottom-line
+// summary rather than a transaction-level report.
+async function exportFullReportCsv({ startDate, endDate }) {
+  const summary = await getSummary({ startDate, endDate });
+  return toCsv(
+    ['Metric', 'Amount'],
+    [
+      ['Period', `${startDate} to ${endDate}`],
+      ['Total Revenue', summary.totalRevenue.toFixed(2)],
+      ['Total Expenses', summary.totalExpenses.toFixed(2)],
+      ['Total Cash Disbursement', summary.totalCashDisbursements.toFixed(2)],
+      ['Net Profit', summary.netProfit.toFixed(2)],
+      ['Formula', 'Total Revenue - Total Expenses - Total Cash Disbursement = Net Profit'],
+    ]
+  );
+}
+
 module.exports = {
   EXPENSE_CATEGORIES,
   VACCINE_COST_CATEGORIES,
@@ -403,4 +492,9 @@ module.exports = {
   getSummary,
   listVaccineCosts,
   updateVaccineCost,
+  exportSalesJournalCsv,
+  exportPurchasesCsv,
+  exportExpensesCsv,
+  exportCashDisbursementsCsv,
+  exportFullReportCsv,
 };

@@ -90,6 +90,32 @@ const updateVaccineCost = asyncHandler(async (req, res) => {
   res.json(item);
 });
 
+function sendCsv(res, csv, filename) {
+  res.set('Content-Type', 'text/csv');
+  res.set('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(csv);
+}
+
+const exportSalesJournalCsv = asyncHandler(async (req, res) => {
+  sendCsv(res, await financialService.exportSalesJournalCsv(req.query), 'sales-journal-export.csv');
+});
+
+const exportPurchasesCsv = asyncHandler(async (req, res) => {
+  sendCsv(res, await financialService.exportPurchasesCsv(req.query), 'purchases-export.csv');
+});
+
+const exportExpensesCsv = asyncHandler(async (req, res) => {
+  sendCsv(res, await financialService.exportExpensesCsv(req.query), 'expenses-export.csv');
+});
+
+const exportCashDisbursementsCsv = asyncHandler(async (req, res) => {
+  sendCsv(res, await financialService.exportCashDisbursementsCsv(req.query), 'cash-disbursements-export.csv');
+});
+
+const exportFullReportCsv = asyncHandler(async (req, res) => {
+  sendCsv(res, await financialService.exportFullReportCsv(req.query), 'financial-full-report.csv');
+});
+
 module.exports = {
   createExpense,
   voidExpense,
@@ -102,4 +128,9 @@ module.exports = {
   getSummary,
   listVaccineCosts,
   updateVaccineCost,
+  exportSalesJournalCsv,
+  exportPurchasesCsv,
+  exportExpensesCsv,
+  exportCashDisbursementsCsv,
+  exportFullReportCsv,
 };
