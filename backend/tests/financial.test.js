@@ -99,15 +99,17 @@ describe('cash disbursements', () => {
     const adminAttempt = await request(app)
       .post('/api/financial/cash-disbursements')
       .set('Authorization', `Bearer ${admin}`)
-      .send({ disbursementDate: todayDateString(), particulars: 'Petty cash for supplies run', amount: 500, givenTo: 'Juan Dela Cruz' });
+      .send({ disbursementDate: todayDateString(), category: 'other', particulars: 'Petty cash for supplies run', amount: 500, givenTo: 'Juan Dela Cruz' });
     expect(adminAttempt.status).toBe(403);
 
     const created = await request(app)
       .post('/api/financial/cash-disbursements')
       .set('Authorization', `Bearer ${mgmt}`)
-      .send({ disbursementDate: todayDateString(), particulars: 'Petty cash for supplies run', amount: 500, givenTo: 'Juan Dela Cruz' });
+      .send({ disbursementDate: todayDateString(), category: 'doctors_fee', particulars: 'Dr. Santos, 8 hrs', amount: 500, givenTo: 'Juan Dela Cruz' });
     expect(created.status).toBe(201);
     expect(created.body.status).toBe('active');
+    expect(created.body.category).toBe('doctors_fee');
+    expect(created.body.particulars).toBe('Dr. Santos, 8 hrs');
     expect(created.body.amount).toBe('500.00');
     expect(created.body.given_to).toBe('Juan Dela Cruz');
 
@@ -132,19 +134,25 @@ describe('cash disbursements', () => {
     expect(revoid.status).toBe(400);
   });
 
-  it('rejects a non-positive amount and missing required fields', async () => {
+  it('rejects a non-positive amount, an unknown category, and missing required fields', async () => {
     const mgmt = await loginAs('Management');
 
     const badAmount = await request(app)
       .post('/api/financial/cash-disbursements')
       .set('Authorization', `Bearer ${mgmt}`)
-      .send({ disbursementDate: todayDateString(), particulars: 'x', amount: 0, givenTo: 'Someone' });
+      .send({ disbursementDate: todayDateString(), category: 'other', particulars: 'x', amount: 0, givenTo: 'Someone' });
     expect(badAmount.status).toBe(400);
+
+    const badCategory = await request(app)
+      .post('/api/financial/cash-disbursements')
+      .set('Authorization', `Bearer ${mgmt}`)
+      .send({ disbursementDate: todayDateString(), category: 'not-a-category', particulars: 'x', amount: 100, givenTo: 'Someone' });
+    expect(badCategory.status).toBe(400);
 
     const missingGivenTo = await request(app)
       .post('/api/financial/cash-disbursements')
       .set('Authorization', `Bearer ${mgmt}`)
-      .send({ disbursementDate: todayDateString(), particulars: 'x', amount: 100 });
+      .send({ disbursementDate: todayDateString(), category: 'other', particulars: 'x', amount: 100 });
     expect(missingGivenTo.status).toBe(400);
   });
 
@@ -155,7 +163,7 @@ describe('cash disbursements', () => {
     await request(app)
       .post('/api/financial/cash-disbursements')
       .set('Authorization', `Bearer ${mgmt}`)
-      .send({ disbursementDate: today, particulars: 'Cash advance for wound-dressing supplies', amount: 150, givenTo: 'Nurse Santos' });
+      .send({ disbursementDate: today, category: 'doctors_fee', particulars: 'Cash advance for wound-dressing supplies', amount: 150, givenTo: 'Nurse Santos' });
 
     const summary = await request(app)
       .get('/api/financial/summary')
@@ -421,7 +429,7 @@ describe('permissions', () => {
     const disbursementCreate = await request(app)
       .post('/api/financial/cash-disbursements')
       .set('Authorization', `Bearer ${cashier}`)
-      .send({ disbursementDate: today, particulars: 'x', amount: 10, givenTo: 'Someone' });
+      .send({ disbursementDate: today, category: 'other', particulars: 'x', amount: 10, givenTo: 'Someone' });
     expect(disbursementCreate.status).toBe(403);
   });
 });

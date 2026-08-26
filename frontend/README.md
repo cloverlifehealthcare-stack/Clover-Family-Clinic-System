@@ -106,13 +106,17 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   Doctor's Fee column at all, matching the current design. Separately populated the clinic's real
   vaccine list (Equerab, Varixab N, Speeda-Purified, Abhayrab, Abhaytox) with their actual current
   costs, computed from a real supplier price sheet at their usual order quantity of 50 units.
-- Cash Disbursement (post-launch addition): as Management, in a real browser end to end — filled
-  the on-screen Record Disbursement form (Date, Particulars "Cash advance for wound-dressing
-  supplies", Amount ₱750, Given To "Nurse Santos") and confirmed the new row appeared in the
-  table with Status "Active"; voided it through the same inline void-reason input pattern
-  Expenses/Billing use and confirmed the status badge flipped to "Voided" and the Void control
-  disappeared, with no page reload needed. The Summary section was also reworked in the same
-  pass into a literal equation (Total Revenue − Total Expenses − Total Cash Disbursement = Net
+- Cash Disbursement (post-launch addition, its Particulars field reworked once more into a
+  category dropdown + free-text Reason at the clinic's request — this is also where doctor's fee
+  payments get logged, see the Purchases entry above): as Management, in a real browser end to
+  end — filled the on-screen Record Disbursement form (Date, Particulars "Doctor's Daily Fee",
+  Reason "Dr. Reyes, 6 hours", Amount ₱600, Given To "Dr. Reyes") and confirmed the new row
+  appeared in the table with the category label rendered correctly and Status "Active"; also
+  confirmed the Summary recalculated to ₱0.00 − ₱0.00 − ₱600.00 = **-₱600.00**. Voided the row
+  through the same inline void-reason input pattern Expenses/Billing use and confirmed the status
+  badge flipped to "Voided" and the Void control disappeared, with no page reload needed. The
+  Summary section was also reworked in an earlier pass into a literal equation (Total Revenue −
+  Total Expenses − Total Cash Disbursement = Net
   Profit, with the Net Profit card visually highlighted); recorded a ₱250 disbursement via the
   API with no other activity in range and confirmed Summary correctly showed
   ₱0.00 − ₱0.00 − ₱250.00 = **-₱250.00**.

@@ -4,6 +4,7 @@ const ApiError = require('../../utils/ApiError');
 
 const EXPENSE_CATEGORIES = ['supplies', 'utilities', 'rent', 'salaries', 'equipment', 'maintenance', 'other'];
 const VACCINE_COST_CATEGORIES = ['vaccine', 'rig'];
+const CASH_DISBURSEMENT_CATEGORIES = ['doctors_fee', 'other'];
 
 function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -100,9 +101,12 @@ async function listExpenses({ startDate, endDate, category }) {
   return query;
 }
 
-async function createCashDisbursement({ disbursementDate, particulars, amount, givenTo, recordedBy, ipAddress }) {
-  if (!disbursementDate || !particulars || !givenTo) {
-    throw new ApiError(400, 'disbursementDate, particulars, and givenTo are required.');
+async function createCashDisbursement({ disbursementDate, category, particulars, amount, givenTo, recordedBy, ipAddress }) {
+  if (!disbursementDate || !category || !particulars || !givenTo) {
+    throw new ApiError(400, 'disbursementDate, category, particulars, and givenTo are required.');
+  }
+  if (!CASH_DISBURSEMENT_CATEGORIES.includes(category)) {
+    throw new ApiError(400, `category must be one of: ${CASH_DISBURSEMENT_CATEGORIES.join(', ')}`);
   }
   const numericAmount = Number(amount);
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
@@ -112,6 +116,7 @@ async function createCashDisbursement({ disbursementDate, particulars, amount, g
   const [created] = await db('cash_disbursements')
     .insert({
       disbursement_date: disbursementDate,
+      category,
       particulars,
       amount: round2(numericAmount),
       given_to: givenTo,
@@ -124,7 +129,7 @@ async function createCashDisbursement({ disbursementDate, particulars, amount, g
     action: 'financial.cash_disbursement_create',
     entityType: 'cash_disbursement',
     entityId: created.id,
-    newValue: { disbursementDate, particulars, amount: numericAmount, givenTo },
+    newValue: { disbursementDate, category, particulars, amount: numericAmount, givenTo },
     ipAddress,
   });
 
@@ -386,6 +391,7 @@ async function getSummary({ startDate, endDate }) {
 module.exports = {
   EXPENSE_CATEGORIES,
   VACCINE_COST_CATEGORIES,
+  CASH_DISBURSEMENT_CATEGORIES,
   createExpense,
   voidExpense,
   listExpenses,

@@ -3,6 +3,7 @@ import * as financialApi from '../../api/financial';
 import { useAuth } from '../../auth/AuthContext';
 
 const EXPENSE_CATEGORIES = ['supplies', 'utilities', 'rent', 'salaries', 'equipment', 'maintenance', 'other'];
+const CASH_DISBURSEMENT_CATEGORY_LABELS = { doctors_fee: "Doctor's Daily Fee", other: 'Other' };
 
 function firstOfMonth() {
   const d = new Date();
@@ -250,6 +251,7 @@ export function FinancialPage() {
                 <tr>
                   <th>Date</th>
                   <th>Particulars</th>
+                  <th>Reason</th>
                   <th>Amount</th>
                   <th>Given To</th>
                   <th>Status</th>
@@ -260,6 +262,7 @@ export function FinancialPage() {
                 {cashDisbursements.map((d) => (
                   <tr key={d.id}>
                     <td>{d.disbursement_date}</td>
+                    <td>{CASH_DISBURSEMENT_CATEGORY_LABELS[d.category] || d.category}</td>
                     <td>{d.particulars}</td>
                     <td>₱{Number(d.amount).toFixed(2)}</td>
                     <td>{d.given_to}</td>
@@ -295,7 +298,7 @@ export function FinancialPage() {
                 ))}
                 {cashDisbursements.length === 0 && (
                   <tr>
-                    <td colSpan={canManage ? 6 : 5}>No cash disbursements recorded in this range.</td>
+                    <td colSpan={canManage ? 7 : 6}>No cash disbursements recorded in this range.</td>
                   </tr>
                 )}
               </tbody>
@@ -449,6 +452,7 @@ function RecordExpenseForm({ onRecorded }) {
 function RecordCashDisbursementForm({ onRecorded }) {
   const [form, setForm] = useState({
     disbursementDate: todayDateString(),
+    category: 'doctors_fee',
     particulars: '',
     amount: '',
     givenTo: '',
@@ -460,7 +464,7 @@ function RecordCashDisbursementForm({ onRecorded }) {
     setError(null);
     try {
       await financialApi.createCashDisbursement({ ...form, amount: Number(form.amount) });
-      setForm({ disbursementDate: todayDateString(), particulars: '', amount: '', givenTo: '' });
+      setForm({ disbursementDate: todayDateString(), category: 'doctors_fee', particulars: '', amount: '', givenTo: '' });
       onRecorded();
     } catch (err) {
       setError(err.message);
@@ -479,8 +483,18 @@ function RecordCashDisbursementForm({ onRecorded }) {
           required
         />
       </label>
-      <label className="field-wide">
+      <label>
         Particulars
+        <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+          {Object.entries(CASH_DISBURSEMENT_CATEGORY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field-wide">
+        Reason
         <input value={form.particulars} onChange={(e) => setForm({ ...form, particulars: e.target.value })} required />
       </label>
       <label>

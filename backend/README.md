@@ -190,12 +190,16 @@ exists in `tests/billing.test.js`).
     `20260826010001_drop_doctor_fees.js`'s comment for the full history.
   - **Cash Disbursement** (post-launch addition, at the clinic's request): `GET/POST
     /api/financial/cash-disbursements`, `POST /:id/void` (view/manage-gated the same as
-    Expenses). A new `cash_disbursements` table — date, particulars, amount, given-to — separate
-    from `expenses` (which is categorized operating cost) since disbursements aren't tied to one
-    of the fixed expense categories. Same void pattern (`status`/`void_reason`/`voided_by`/
+    Expenses). A new `cash_disbursements` table — date, category (`particulars` — "Doctor's Daily
+    Fee" or "Other", added in a follow-up pass at the clinic's request, `CASH_DISBURSEMENT_CATEGORIES`
+    in `financial.service.js`), reason (the free-text `particulars` column — e.g. "Dr. Santos, 8
+    hrs"), amount, given-to — separate from `expenses` (which is categorized operating cost)
+    since disbursements aren't tied to one of the fixed expense categories. This is also where
+    the clinic records actual doctor's fee payments (see the Purchases entry above for why that's
+    not computed automatically). Same void pattern (`status`/`void_reason`/`voided_by`/
     `voided_at`) as `expenses`/`payments` — no hard delete, for the same audit reasons.
-    `GET /api/financial/summary`'s formula was updated in the same pass to
-    `netProfit = totalRevenue - totalExpenses - totalCashDisbursements` (previously just
+    `GET /api/financial/summary`'s formula was updated in the same pass Cash Disbursement was
+    added to `netProfit = totalRevenue - totalExpenses - totalCashDisbursements` (previously just
     revenue minus expenses) — the response now also returns `totalCashDisbursements` alongside
     the existing fields, and the frontend Summary section displays it as a literal equation.
 - **Daily Activity Report** (Phase 3, no doc spec): `GET /api/reports/daily-activity?date=YYYY-MM-DD`

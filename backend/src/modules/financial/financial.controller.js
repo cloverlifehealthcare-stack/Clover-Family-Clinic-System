@@ -32,7 +32,7 @@ const listExpenses = asyncHandler(async (req, res) => {
   res.json(await financialService.listExpenses(req.query));
 });
 
-const REQUIRED_CASH_DISBURSEMENT_FIELDS = ['disbursementDate', 'particulars', 'amount', 'givenTo'];
+const REQUIRED_CASH_DISBURSEMENT_FIELDS = ['disbursementDate', 'category', 'particulars', 'amount', 'givenTo'];
 
 const createCashDisbursement = asyncHandler(async (req, res) => {
   for (const field of REQUIRED_CASH_DISBURSEMENT_FIELDS) {
