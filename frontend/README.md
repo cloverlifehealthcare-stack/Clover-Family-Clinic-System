@@ -61,6 +61,20 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   reverted to `partially_paid`, balance recalculated), and confirmed voiding the whole statement
   is blocked with a clear message while an active payment remains — the exact rule from the
   backend's billing test suite, now visible as real UI behavior instead of just a passing test.
+- Print Statement (post-launch addition, at the clinic's request, styled as a customer-facing
+  invoice): the billing statement detail page (`BillingDetailPage.jsx`) now fetches the patient
+  record alongside the statement and renders a second, print-only view (`.print-only`, hidden on
+  screen, shown via a `@media print` rule that also hides the app's nav/topbar and every
+  interactive control) — an invoice layout with the clinic's logo/name/contact, a bolded status
+  stamp (Paid/Unpaid/Partially Paid/Void), a "Bill To" block with the patient's name/code/contact,
+  the itemized charges, a totals block ending in Balance Due, and payment history with OR
+  numbers. The "Print Statement" button just calls `window.print()` — no PDF library, server
+  round-trip, or new backend endpoint involved, since everything needed was already returned by
+  the existing statement/patient endpoints. Verified by reading the print-only DOM content
+  directly (confirmed all fields populate correctly — patient name/code/contact, OR number,
+  itemized line, subtotal/discount/total/paid/balance, payment history row) and confirming via
+  computed styles that `.print-only` is `display: none` on screen and `.no-print` is visible,
+  i.e. the two views don't show simultaneously.
 - Inventory (Phase 2): created an item (correctly showed "low stock" at 0 remaining), received a
   batch with a near-term expiration date, confirmed the badge cleared once stock exceeded the
   reorder threshold, recorded a spoilage adjustment and confirmed remaining stock dropped by

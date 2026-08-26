@@ -1,17 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import * as billingApi from '../../api/billing';
+import * as patientsApi from '../../api/patients';
 import { useAuth } from '../../auth/AuthContext';
 
 export function BillingDetailPage() {
   const { id } = useParams();
   const { hasPermission } = useAuth();
   const [statement, setStatement] = useState(null);
+  const [patient, setPatient] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     billingApi.getStatement(id).then(setStatement).catch((err) => setError(err.message));
   }, [id]);
+
+  useEffect(() => {
+    if (statement) {
+      patientsApi.getPatient(statement.patient_id).then(setPatient).catch((err) => setError(err.message));
+    }
+  }, [statement]);
 
   if (error) return <div className="form-error">{error}</div>;
   if (!statement) return <p>Loading…</p>;
@@ -21,58 +29,198 @@ export function BillingDetailPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Billing Statement #{statement.id}</h1>
-        <span className={`status-badge status-${statement.status}`}>{statement.status.replace('_', ' ')}</span>
+      <div className="no-print">
+        <div className="page-header">
+          <h1>Billing Statement #{statement.id}</h1>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span className={`status-badge status-${statement.status}`}>{statement.status.replace('_', ' ')}</span>
+            <button type="button" onClick={() => window.print()}>
+              Print Statement
+            </button>
+          </span>
+        </div>
+
+        {error && <div className="form-error">{error}</div>}
+
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {statement.items.map((item) => (
+              <tr key={item.id}>
+                <td>{item.description}</td>
+                <td>{item.quantity}</td>
+                <td>₱{item.unit_price}</td>
+                <td>₱{item.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <dl className="detail-grid">
+          <dt>Subtotal</dt>
+          <dd>₱{statement.subtotal_amount}</dd>
+          <dt>Discount ({statement.discount_type !== 'none' ? statement.discount_type.toUpperCase() : 'none'})</dt>
+          <dd>₱{statement.discount_amount}</dd>
+          <dt>Total</dt>
+          <dd>
+            <strong>₱{statement.total_amount}</strong>
+          </dd>
+          <dt>Amount paid</dt>
+          <dd>₱{statement.amountPaid}</dd>
+          <dt>Balance due</dt>
+          <dd>₱{statement.balanceDue}</dd>
+        </dl>
+
+        <PaymentsSection statement={statement} setStatement={setStatement} canPay={canPay} canVoid={canVoid} />
+
+        {canVoid && statement.status !== 'void' && (
+          <VoidStatementForm statementId={statement.id} setStatement={setStatement} />
+        )}
+
+        <p className="back-link">
+          <Link to={`/patients/${statement.patient_id}/billing-statements`}>← Back to statements</Link>
+        </p>
       </div>
 
-      {error && <div className="form-error">{error}</div>}
+      <PrintableStatement statement={statement} patient={patient} />
+    </div>
+  );
+}
 
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Description</th>
-            <th>Qty</th>
-            <th>Unit Price</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {statement.items.map((item) => (
-            <tr key={item.id}>
-              <td>{item.description}</td>
-              <td>{item.quantity}</td>
-              <td>₱{item.unit_price}</td>
-              <td>₱{item.amount}</td>
+function PrintableStatement({ statement, patient }) {
+  const activePayments = statement.payments.filter((p) => p.status === 'active');
+  const lastOrNumber = activePayments.length ? activePayments[activePayments.length - 1].or_number : null;
+
+  return (
+    <div className="print-only">
+      <div className="invoice">
+        <div className="invoice-header">
+          <div className="invoice-brand">
+            <img src="/logo.jpg" alt="" />
+            <div>
+              <div className="invoice-brand-name">Clover Family Care and Animal Bite Center</div>
+              <div className="invoice-brand-contact">
+                +63 955 437 4779 · cloverfamilycareabc@gmail.com
+              </div>
+            </div>
+          </div>
+          <div className="invoice-heading">
+            <h1>INVOICE</h1>
+            <div>No. {String(statement.id).padStart(6, '0')}</div>
+            <div>{new Date(statement.created_at).toLocaleDateString()}</div>
+            <div className="invoice-status-stamp">{statement.status.replace('_', ' ')}</div>
+          </div>
+        </div>
+
+        <div className="invoice-meta-grid">
+          <section>
+            <div className="invoice-meta-label">Bill To</div>
+            {patient ? (
+              <>
+                <div className="invoice-bill-to">
+                  {patient.last_name}, {patient.first_name}
+                </div>
+                <div>Patient Code: {patient.patient_code}</div>
+                {patient.contact_number && <div>Contact: {patient.contact_number}</div>}
+              </>
+            ) : (
+              <div>—</div>
+            )}
+          </section>
+          <section>
+            <div className="invoice-meta-label">Payment</div>
+            <div>OR No.: {lastOrNumber || '—'}</div>
+            <div>Discount: {statement.discount_type !== 'none' ? statement.discount_type.toUpperCase() : 'None'}</div>
+          </section>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th>Amount</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {statement.items.map((item) => (
+              <tr key={item.id}>
+                <td>{item.description}</td>
+                <td>{item.quantity}</td>
+                <td>₱{item.unit_price}</td>
+                <td>₱{item.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-      <dl className="detail-grid">
-        <dt>Subtotal</dt>
-        <dd>₱{statement.subtotal_amount}</dd>
-        <dt>Discount ({statement.discount_type !== 'none' ? statement.discount_type.toUpperCase() : 'none'})</dt>
-        <dd>₱{statement.discount_amount}</dd>
-        <dt>Total</dt>
-        <dd>
-          <strong>₱{statement.total_amount}</strong>
-        </dd>
-        <dt>Amount paid</dt>
-        <dd>₱{statement.amountPaid}</dd>
-        <dt>Balance due</dt>
-        <dd>₱{statement.balanceDue}</dd>
-      </dl>
+        <div className="invoice-totals">
+          <div>
+            <span>Subtotal</span>
+            <span>₱{statement.subtotal_amount}</span>
+          </div>
+          <div>
+            <span>Discount</span>
+            <span>₱{statement.discount_amount}</span>
+          </div>
+          <div className="invoice-grand-total">
+            <span>Total</span>
+            <span>₱{statement.total_amount}</span>
+          </div>
+          <div>
+            <span>Amount Paid</span>
+            <span>₱{statement.amountPaid}</span>
+          </div>
+          <div className="invoice-balance-due">
+            <span>Balance Due</span>
+            <span>₱{statement.balanceDue}</span>
+          </div>
+        </div>
 
-      <PaymentsSection statement={statement} setStatement={setStatement} canPay={canPay} canVoid={canVoid} />
+        {statement.payments.length > 0 && (
+          <>
+            <div className="invoice-meta-label" style={{ marginTop: '1.5rem' }}>
+              Payment History
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>OR #</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {statement.payments.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.paid_at.slice(0, 10)}</td>
+                    <td>₱{p.amount_paid}</td>
+                    <td>{p.payment_method}</td>
+                    <td>{p.or_number}</td>
+                    <td>{p.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
 
-      {canVoid && statement.status !== 'void' && (
-        <VoidStatementForm statementId={statement.id} setStatement={setStatement} />
-      )}
-
-      <p className="back-link">
-        <Link to={`/patients/${statement.patient_id}/billing-statements`}>← Back to statements</Link>
-      </p>
+        <div className="invoice-footer">
+          <p>Thank you for trusting Clover Family Care and Animal Bite Center with your care.</p>
+          <p>This document serves as your official billing statement / receipt.</p>
+          <p>Printed on {new Date().toLocaleString()}</p>
+        </div>
+      </div>
     </div>
   );
 }
