@@ -19,6 +19,7 @@ const remindersRoutes = require('./modules/reminders/reminders.routes');
 const financialRoutes = require('./modules/financial/financial.routes');
 const reportsRoutes = require('./modules/reports/reports.routes');
 const auditRoutes = require('./modules/audit/audit.routes');
+const dashboardRoutes = require('./modules/dashboard/dashboard.routes');
 const patientAuthRoutes = require('./modules/patientAuth/patientAuth.routes');
 const patientPortalRoutes = require('./modules/patientPortal/patientPortal.routes');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -92,6 +93,7 @@ app.use('/api/scheduling', schedulingRoutes);
 app.use('/api/financial', financialRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/audit-logs', auditRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

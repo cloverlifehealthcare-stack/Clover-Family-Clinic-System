@@ -173,6 +173,19 @@ coordinate-based click occasionally missed the actual button (confirmed by dispa
 directly via JS and seeing the expected network request fire immediately after). Worth knowing if
 a future click-based test seems to silently do nothing — try a direct DOM `.click()` to rule out
 the same thing before assuming the app is broken.
+- Dashboard (post-launch — the landing page had been a static "Welcome, {name}" message with no
+  data since Phase 1; `DashboardPage.jsx` fully rewritten to fetch `GET /api/dashboard` and
+  render whichever sections come back non-`null`, reusing the same `.summary-cards`/
+  `.summary-card` styling as the Financial page's tiles, including the exact Total Revenue −
+  Total Expenses − Total Cash Disbursement = Net Profit equation layout for the financial
+  section): as Management, in a real browser end to end — registered a patient and created a
+  same-day appointment through the API, reloaded the dashboard, and confirmed "New Patients
+  Today" and "Appointments Today" both correctly incremented to 1, with the new appointment
+  showing correctly in the Today's Appointments table (time, patient, doctor, status). Also
+  logged in as a fresh Cashier account and confirmed the page renders cleanly with only the
+  sections that role has permission for (Appointments Today, On Shift Today) — no crash, no
+  blank cards, no console errors — with Daily Activity/Financial/Inventory/Follow-ups sections
+  correctly absent rather than showing empty or zeroed placeholders.
 
 ## Running it locally
 

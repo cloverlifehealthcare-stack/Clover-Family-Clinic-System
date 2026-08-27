@@ -311,6 +311,28 @@ exists in `tests/billing.test.js`).
   column. The first version called `.toISOString()` on it and crashed with a 500. Fixed by
   treating `row.period` as the string it already is, matching the convention used everywhere
   else.
+- **Dashboard** (post-launch, at the clinic's request — the landing page was a static "Welcome,
+  {name}" message with no data since Phase 1): `GET /api/dashboard`, a new module
+  (`src/modules/dashboard/`) that aggregates today's snapshot purely by calling into existing
+  services — `reportsService.getDailyActivity`, `inventoryService.getAlerts`,
+  `appointmentsService.listAppointments`, `schedulingService.listShifts`,
+  `financialService.getSummary` — plus one genuinely new query (a `follow_ups` due-today/overdue
+  count; no existing function answered that question — `reminders.service.js`'s `findDue*`
+  helpers check for an exact target date, for the SMS/email job, and aren't exported). Unlike
+  every other module, the route itself carries **no** `requirePermission` — only `requireAuth`.
+  Each section is instead included or set to `null` in the response by the controller/service
+  checking the caller's own effective permissions (via `permissionService.getEffectivePermissions`,
+  the same call `scheduling.controller.js` already makes to decide row-scoping) against that
+  section's *existing* gate: `reports.view` for daily activity and follow-ups, `inventory.view`
+  for alerts, `appointments.view` for today's appointments, `scheduling.view` for today's shifts,
+  `financial.view` for the summary. This means every logged-in user gets a 200 with a usable
+  dashboard — never a 403 — just with fewer sections depending on their role; a Cashier, for
+  example, gets appointments and their own shift but nothing else. Appointments and shifts reuse
+  their source functions' own row-scoping unmodified (a Doctor's dashboard only shows their own
+  appointments; a non-`scheduling.manage` user only sees their own shift). Verified with a real
+  Management account (every section populated, a live patient/appointment created same-day
+  correctly bumping the counts) and a real Cashier account (the four permission-gated sections
+  correctly `null`, appointments/shifts still populated) — see `tests/dashboard.test.js`.
 
 ## Running it locally
 

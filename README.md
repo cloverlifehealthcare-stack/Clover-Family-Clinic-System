@@ -67,6 +67,20 @@ appointment no-show/cancellation rates). A data-export toolkit and staff-perform
 also on the table and weren't chosen; either is a reasonable follow-up if you want it later.
 Still deliberately no revenue/profit figures, matching Daily Activity Reports' restriction.
 
+**Post-launch: the Dashboard landing page was built out.** It was a static "Welcome, {name}"
+placeholder with no data since Phase 1 — never wired to anything. It now aggregates today's
+snapshot from the modules that already existed: new patients, animal-bite visits, and
+consultations (from Daily Activity); today's appointments (row-scoped to a Doctor's own
+schedule, same rule as the Appointments page); follow-ups due today/overdue (a new count-only
+query, no existing one fit); low-stock/expiring-soon inventory alerts; who's on shift today
+(row-scoped to your own shift unless you have `scheduling.manage`); and, for Management, today's
+Financial Summary in the same Total Revenue − Total Expenses − Total Cash Disbursement = Net
+Profit format as the Financial page. Every section is gated by that section's own existing
+permission (`reports.view`, `appointments.view`, `inventory.view`, `scheduling.view`,
+`financial.view`) rather than one new blanket permission — a user with none of these still gets
+a working dashboard, just with fewer sections, matching how differently each role already sees
+the rest of the app. See `backend/README.md` and `frontend/README.md` for the full design.
+
 The **Patient Portal** is, per §1.3, a deliberately separate app from the staff SPA —
 [`patient-portal/`](patient-portal/), its own React + Vite project, its own auth flow (a
 completely separate `patient_accounts` table and JWT secret pair, not a new role in `users`),
