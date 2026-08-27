@@ -125,6 +125,27 @@ exists in `tests/billing.test.js`).
   it now risked changing already-shipped Phase 1 appointment behavior; left as a flagged
   follow-up in the migration comment, not silently skipped. Overnight shifts (crossing midnight)
   aren't supported.
+  - **Weekly calendar, hours of service, and manager clock-in/out** (post-launch additions, at
+    the clinic's request): `GET /api/scheduling/shifts` now also accepts `startDate`/`endDate`
+    (alongside the original single `date`) for a Monday-start week's worth of shifts in one
+    call, and its response now also includes each shift's `role` (joined from `roles.name`) so
+    the frontend calendar can filter to e.g. just Doctor shifts without a separate endpoint.
+    `POST /api/scheduling/attendance/clock-in-for/:userId` and `/clock-out-for/:userId`
+    (`scheduling.manage`) let Management/Admin clock a *different* staff member in/out in real
+    time — for a doctor who doesn't log into the system themselves — distinct from the
+    self-service `/clock-in`/`/clock-out` above, which only ever touch the caller's own row;
+    `recorded_by` is set to the acting manager (a self-clock leaves it `NULL`, per the
+    `attendance_records` migration's own column comment), so it's visible in the data which rows
+    were a manager action. `GET /api/scheduling/hours-summary?startDate=&endDate=&userId=`
+    (`scheduling.view`, same row-scoping as the rest of the module) is genuinely new ground —
+    nothing computed a duration from `clock_in_at`/`clock_out_at` anywhere before this; Daily
+    Activity's `staffAttendance` is a same-day count of rows by status, not a time calculation.
+    Sums `extract(epoch from (clock_out_at - clock_in_at)) / 3600` per staff member across the
+    range, only counting rows where both timestamps are set — a day marked `on_leave`/`absent`,
+    or a forgotten clock-out, contributes 0 hours rather than a guessed value. Verified with a
+    real clock-in-for/clock-out-for cycle (Admin clocking a test Doctor in and out) and a manual
+    8-hour attendance correction, confirming the hours summary sums both correctly — see
+    `tests/scheduling.test.js`.
 - **Follow-up Reminders** (Phase 2, no doc spec beyond §0's confirmed channels): `POST
   /api/reminders/run` (`reminders.manage`, Management/Admin only — finds animal-bite/consultation
   follow-ups and appointments due `daysBefore` days out — default 1, i.e. "tomorrow" — and sends

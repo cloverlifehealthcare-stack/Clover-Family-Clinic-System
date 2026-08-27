@@ -4,6 +4,10 @@ export function listShifts(date) {
   return api.get(`/scheduling/shifts?date=${date}`);
 }
 
+export function listShiftsRange(startDate, endDate) {
+  return api.get(`/scheduling/shifts?startDate=${startDate}&endDate=${endDate}`);
+}
+
 export function createShift(payload) {
   return api.post('/scheduling/shifts', payload);
 }
@@ -18,6 +22,18 @@ export function clockIn() {
 
 export function clockOut() {
   return api.post('/scheduling/attendance/clock-out', {});
+}
+
+export function clockInFor(userId) {
+  return api.post(`/scheduling/attendance/clock-in-for/${userId}`, {});
+}
+
+export function clockOutFor(userId) {
+  return api.post(`/scheduling/attendance/clock-out-for/${userId}`, {});
+}
+
+export function getHoursSummary(startDate, endDate) {
+  return api.get(`/scheduling/hours-summary?startDate=${startDate}&endDate=${endDate}`);
 }
 
 export function listAttendance(date) {

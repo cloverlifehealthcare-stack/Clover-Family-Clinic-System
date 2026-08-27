@@ -178,3 +178,128 @@ describe('POST /api/scheduling/attendance (manual correction)', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('clocking in/out a different staff member (POST .../clock-in-for/:userId, clock-out-for)', () => {
+  it('Admin can clock a doctor in and out; Nurse cannot', async () => {
+    const admin = await loginAs('Admin');
+    const nurseActor = await loginAs('Nurse');
+    const doctor = await loginAsWithId('Doctor');
+
+    const blocked = await request(app)
+      .post(`/api/scheduling/attendance/clock-in-for/${doctor.id}`)
+      .set('Authorization', `Bearer ${nurseActor}`);
+    expect(blocked.status).toBe(403);
+
+    const in1 = await request(app)
+      .post(`/api/scheduling/attendance/clock-in-for/${doctor.id}`)
+      .set('Authorization', `Bearer ${admin}`);
+    expect(in1.status).toBe(201);
+    expect(in1.body.user_id).toBe(doctor.id);
+    expect(in1.body.clock_in_at).not.toBeNull();
+
+    const dup = await request(app)
+      .post(`/api/scheduling/attendance/clock-in-for/${doctor.id}`)
+      .set('Authorization', `Bearer ${admin}`);
+    expect(dup.status).toBe(400);
+
+    const out1 = await request(app)
+      .post(`/api/scheduling/attendance/clock-out-for/${doctor.id}`)
+      .set('Authorization', `Bearer ${admin}`);
+    expect(out1.status).toBe(200);
+    expect(out1.body.clock_out_at).not.toBeNull();
+  });
+
+  it('rejects clocking out a staff member who has not clocked in, and clocking in a nonexistent user', async () => {
+    const admin = await loginAs('Admin');
+    const doctor = await loginAsWithId('Doctor');
+
+    const notClockedIn = await request(app)
+      .post(`/api/scheduling/attendance/clock-out-for/${doctor.id}`)
+      .set('Authorization', `Bearer ${admin}`);
+    expect(notClockedIn.status).toBe(400);
+
+    const nonexistent = await request(app)
+      .post('/api/scheduling/attendance/clock-in-for/999999')
+      .set('Authorization', `Bearer ${admin}`);
+    expect(nonexistent.status).toBe(404);
+  });
+});
+
+describe('GET /api/scheduling/hours-summary', () => {
+  it('sums real clock_in/clock_out durations for a staff member over a date range', async () => {
+    const admin = await loginAs('Admin');
+    const doctor = await loginAsWithId('Doctor');
+
+    await request(app)
+      .post('/api/scheduling/attendance')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({
+        userId: doctor.id,
+        attendanceDate: '2026-09-10',
+        clockInAt: '2026-09-10T08:00:00.000Z',
+        clockOutAt: '2026-09-10T16:00:00.000Z',
+      });
+
+    const res = await request(app)
+      .get('/api/scheduling/hours-summary')
+      .query({ startDate: '2026-09-10', endDate: '2026-09-10', userId: doctor.id })
+      .set('Authorization', `Bearer ${admin}`);
+
+    expect(res.status).toBe(200);
+    const row = res.body.find((r) => r.userId === doctor.id);
+    expect(row).toBeDefined();
+    expect(row.totalHours).toBe(8);
+    expect(row.daysRecorded).toBe(1);
+  });
+
+  it('rejects a request missing startDate/endDate', async () => {
+    const admin = await loginAs('Admin');
+    const res = await request(app).get('/api/scheduling/hours-summary').set('Authorization', `Bearer ${admin}`);
+    expect(res.status).toBe(400);
+  });
+
+  it('a non-manager only sees their own hours', async () => {
+    const admin = await loginAs('Admin');
+    const doctorA = await loginAsWithId('Doctor');
+    const doctorB = await loginAsWithId('Doctor');
+
+    await request(app)
+      .post('/api/scheduling/attendance')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({
+        userId: doctorB.id,
+        attendanceDate: '2026-09-11',
+        clockInAt: '2026-09-11T08:00:00.000Z',
+        clockOutAt: '2026-09-11T12:00:00.000Z',
+      });
+
+    const res = await request(app)
+      .get('/api/scheduling/hours-summary')
+      .query({ startDate: '2026-09-11', endDate: '2026-09-11', userId: doctorB.id })
+      .set('Authorization', `Bearer ${doctorA.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.every((r) => r.userId === doctorA.id)).toBe(true);
+  });
+});
+
+describe('GET /api/scheduling/shifts date range (weekly calendar)', () => {
+  it('returns shifts within startDate/endDate, including the role field', async () => {
+    const admin = await loginAs('Admin');
+    const doctor = await loginAsWithId('Doctor');
+
+    await request(app)
+      .post('/api/scheduling/shifts')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({ userId: doctor.id, shiftDate: '2026-09-15', startTime: '08:00', endTime: '12:00' });
+
+    const res = await request(app)
+      .get('/api/scheduling/shifts')
+      .query({ startDate: '2026-09-14', endDate: '2026-09-20' })
+      .set('Authorization', `Bearer ${admin}`);
+
+    expect(res.status).toBe(200);
+    const row = res.body.find((s) => s.user_id === doctor.id && s.shift_date === '2026-09-15');
+    expect(row).toBeDefined();
+    expect(row.role).toBe('Doctor');
+  });
+});

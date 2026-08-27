@@ -89,6 +89,30 @@ frontend work — see the backend README and git log: Admin had no way to fetch 
   logged in as that Doctor and confirmed row-scoping end to end: their shift view shows only
   their own shift with no "Remove" button or assignment form (no `scheduling.manage`), and their
   attendance view correctly excludes Management's clock-in record from earlier.
+- Weekly calendar, Clock In/Out for Staff, and Hours of Service (post-launch additions, at the
+  clinic's request — see `backend/README.md`): as Management, assigned a test Doctor a shift and
+  confirmed the new "Weekly Schedule" calendar correctly placed it on the right day of the
+  Monday–Sunday grid, with a role filter dropdown populated from the week's actual shifts. Used
+  the new "Clock In/Out for Staff" widget to clock that same Doctor in and out on their behalf
+  (a capability that didn't exist before — the only prior clock-in/out was self-service) and
+  confirmed the Attendance table updated with real timestamps and `recorded_by` implicitly set to
+  the acting Management account. Confirmed "Hours of Service" correctly summed a manually-entered
+  8-hour attendance correction, and — after initially finding it silently stale following a
+  clock-in/out (it fetched once on mount and had no way to know something else on the page had
+  changed) — wired it to the same `reload()` every other action on the page already calls, via a
+  `refreshToken` counter passed as a prop and included in its effect's dependency array; verified
+  the fix by clocking a second test user in/out and confirming their row appeared in Hours of
+  Service immediately, with no page reload. Also caught and fixed a real bug in the week-calendar
+  date math before calling it done: `Date.prototype.toISOString().slice(0, 10)`, used to format a
+  locally-constructed Date back into a `'YYYY-MM-DD'` string, converts to UTC first — for anyone
+  in a timezone east of UTC (the Philippines is UTC+8) sitting at local midnight, UTC hasn't
+  reached that calendar day yet, so the string comes out one day early. The bug wasn't a rare
+  midnight edge case here: it fired unconditionally, at any time of day, because it was applied
+  *after* local-date arithmetic (`setDate`) whose result was then round-tripped through UTC — the
+  displayed week for a Thursday came out Saturday–Friday instead of Monday–Sunday. Fixed with a
+  `formatLocalDate()` helper that reads `getFullYear()`/`getMonth()`/`getDate()` directly instead
+  of going through `toISOString()`, and confirmed the corrected week (Mon Aug 24–Sun Aug 30) in a
+  live reload before moving on.
 - Follow-up Reminders (Phase 2): as Management, opened the empty log, clicked "Run Reminders
   Now" against a clean dataset (correctly reported `Sent 0, skipped 0, failed 0`), then created a
   patient and an appointment for tomorrow via the API and re-ran the job — the log populated with

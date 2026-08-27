@@ -5,29 +5,72 @@ import { useAuth } from '../../auth/AuthContext';
 const TODAY = new Date().toISOString().slice(0, 10);
 const ATTENDANCE_STATUSES = ['present', 'late', 'absent', 'on_leave', 'half_day'];
 
+// Formats a Date using its LOCAL calendar fields, not `.toISOString().slice(0, 10)` — that
+// converts to UTC first, which silently rolls the date back a day for anyone west of UTC... no,
+// actually east of UTC (e.g. the Philippines, UTC+8) at local midnight, since UTC hasn't reached
+// that calendar day yet. Bit the week calendar below during initial testing (showed Sat–Fri
+// instead of Mon–Sun) — every date built from a local-midnight Date must go through this, not
+// toISOString.
+function formatLocalDate(d) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Monday-start week containing the given 'YYYY-MM-DD' date string.
+function getWeekRange(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  const day = d.getDay(); // 0 = Sunday .. 6 = Saturday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { start: formatLocalDate(monday), end: formatLocalDate(sunday) };
+}
+
 export function SchedulingPage() {
   const { hasPermission, user } = useAuth();
   const [date, setDate] = useState(TODAY);
   const [shifts, setShifts] = useState([]);
+  const [weekShifts, setWeekShifts] = useState([]);
+  const [roleFilter, setRoleFilter] = useState('all');
   const [attendance, setAttendance] = useState([]);
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   const canManage = hasPermission('scheduling.manage');
+  const week = getWeekRange(date);
 
   async function reload() {
-    const [s, a] = await Promise.all([schedulingApi.listShifts(date), schedulingApi.listAttendance(date)]);
+    const [s, w, a] = await Promise.all([
+      schedulingApi.listShifts(date),
+      schedulingApi.listShiftsRange(week.start, week.end),
+      schedulingApi.listAttendance(date),
+    ]);
     setShifts(s);
+    setWeekShifts(w);
     setAttendance(a);
+    // Hours of Service manages its own fetch (it has its own date-range inputs, independent of
+    // the page's single `date`), so it doesn't see this reload — bump a token it watches instead.
+    setRefreshToken((t) => t + 1);
   }
 
   useEffect(() => {
     setLoading(true);
     setError(null);
-    Promise.all([schedulingApi.listShifts(date), schedulingApi.listAttendance(date), canManage ? schedulingApi.listStaff() : Promise.resolve([])])
-      .then(([s, a, st]) => {
+    Promise.all([
+      schedulingApi.listShifts(date),
+      schedulingApi.listShiftsRange(week.start, week.end),
+      schedulingApi.listAttendance(date),
+      canManage ? schedulingApi.listStaff() : Promise.resolve([]),
+    ])
+      .then(([s, w, a, st]) => {
         setShifts(s);
+        setWeekShifts(w);
         setAttendance(a);
         setStaff(st);
       })
@@ -45,6 +88,7 @@ export function SchedulingPage() {
       {error && <div className="form-error">{error}</div>}
 
       <ClockWidget myAttendanceToday={date === TODAY ? myAttendanceToday : null} onChanged={reload} showHint={date !== TODAY} />
+      {canManage && <ClockForStaffWidget staff={staff} onChanged={reload} />}
 
       <label className="date-filter">
         Date
@@ -55,6 +99,8 @@ export function SchedulingPage() {
         <p>Loading…</p>
       ) : (
         <>
+          <WeekCalendar weekShifts={weekShifts} weekStart={week.start} roleFilter={roleFilter} setRoleFilter={setRoleFilter} />
+
           <section className="record-section">
             <h2>Shifts — {date}</h2>
             <table className="table">
@@ -130,9 +176,183 @@ export function SchedulingPage() {
             </table>
             {canManage && <RecordAttendanceForm date={date} staff={staff} onRecorded={reload} />}
           </section>
+
+          <HoursSummary canManage={canManage} refreshToken={refreshToken} />
         </>
       )}
     </div>
+  );
+}
+
+function ClockForStaffWidget({ staff, onChanged }) {
+  const [userId, setUserId] = useState('');
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handle(action) {
+    if (!userId) return;
+    setError(null);
+    setBusy(true);
+    try {
+      if (action === 'in') {
+        await schedulingApi.clockInFor(Number(userId));
+      } else {
+        await schedulingApi.clockOutFor(Number(userId));
+      }
+      onChanged();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="record-section clock-widget">
+      <h2>Clock In/Out for Staff</h2>
+      <p className="page-description">
+        For staff who don't log into the system themselves — e.g. a doctor — record their attendance on their
+        behalf, timestamped now.
+      </p>
+      {error && <div className="form-error">{error}</div>}
+      <div className="inline-form">
+        <label>
+          Staff
+          <select value={userId} onChange={(e) => setUserId(e.target.value)}>
+            <option value="">Select…</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.full_name} ({s.role})
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="button-row">
+          <button type="button" disabled={!userId || busy} onClick={() => handle('in')}>
+            Clock In
+          </button>
+          <button type="button" disabled={!userId || busy} onClick={() => handle('out')}>
+            Clock Out
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WeekCalendar({ weekShifts, weekStart, roleFilter, setRoleFilter }) {
+  const days = [];
+  const start = new Date(`${weekStart}T00:00:00`);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(formatLocalDate(d));
+  }
+  const roles = [...new Set(weekShifts.map((s) => s.role))].sort();
+
+  return (
+    <section className="record-section">
+      <h2>Weekly Schedule</h2>
+      <label className="date-filter">
+        Filter by role
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+          <option value="all">All staff</option>
+          {roles.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="week-calendar">
+        {days.map((day) => {
+          const dayShifts = weekShifts.filter((s) => s.shift_date === day && (roleFilter === 'all' || s.role === roleFilter));
+          return (
+            <div key={day} className={`week-calendar-day${day === TODAY ? ' is-today' : ''}`}>
+              <div className="week-calendar-day-label">
+                {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+              </div>
+              {dayShifts.map((s) => (
+                <div key={s.id} className="week-calendar-shift">
+                  <strong>{s.user_name}</strong>
+                  {s.role} · {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                </div>
+              ))}
+              {dayShifts.length === 0 && <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>—</span>}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function HoursSummary({ canManage, refreshToken }) {
+  const defaultWeek = getWeekRange(TODAY);
+  const [start, setStart] = useState(defaultWeek.start);
+  const [end, setEnd] = useState(defaultWeek.end);
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    schedulingApi
+      .getHoursSummary(start, end)
+      .then(setRows)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [start, end, refreshToken]);
+
+  return (
+    <section className="record-section">
+      <h2>Hours of Service</h2>
+      <p className="page-description">
+        Total hours actually worked (from real clock-in/clock-out times) per staff member for the selected range.
+        {!canManage && ' Showing your own hours only.'}
+      </p>
+      <div className="filter-row">
+        <label>
+          From
+          <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+        </label>
+        <label>
+          To
+          <input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+        </label>
+      </div>
+      {error && <div className="form-error">{error}</div>}
+      {loading ? (
+        <p>Loading…</p>
+      ) : (
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Staff</th>
+              <th>Role</th>
+              <th>Days Recorded</th>
+              <th>Total Hours</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.userId}>
+                <td>{r.userName}</td>
+                <td>{r.role}</td>
+                <td>{r.daysRecorded}</td>
+                <td>{r.totalHours.toFixed(2)}</td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4}>No completed clock-in/clock-out records in this range.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }
 

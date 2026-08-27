@@ -13,11 +13,18 @@ router.use(requireAuth);
 router.post('/attendance/clock-in', controller.clockIn);
 router.post('/attendance/clock-out', controller.clockOut);
 
+// Management clocking a *different* staff member in/out in real time (e.g. a doctor who
+// doesn't log into the system) — unlike the self-service routes above, this genuinely needs
+// scheduling.manage, since it writes someone else's attendance.
+router.post('/attendance/clock-in-for/:userId', requirePermission('scheduling.manage'), controller.clockInFor);
+router.post('/attendance/clock-out-for/:userId', requirePermission('scheduling.manage'), controller.clockOutFor);
+
 router.get('/shifts', requirePermission('scheduling.view'), controller.listShifts);
 router.post('/shifts', requirePermission('scheduling.manage'), controller.createShift);
 router.delete('/shifts/:id', requirePermission('scheduling.manage'), controller.deleteShift);
 
 router.get('/attendance', requirePermission('scheduling.view'), controller.listAttendance);
 router.post('/attendance', requirePermission('scheduling.manage'), controller.recordManualAttendance);
+router.get('/hours-summary', requirePermission('scheduling.view'), controller.getHoursSummary);
 
 module.exports = router;

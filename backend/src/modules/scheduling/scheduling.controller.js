@@ -23,7 +23,12 @@ const createShift = asyncHandler(async (req, res) => {
 
 const listShifts = asyncHandler(async (req, res) => {
   const actingUser = await buildActingUser(req);
-  res.json(await schedulingService.listShifts({ date: req.query.date, userId: req.query.userId }, actingUser));
+  res.json(
+    await schedulingService.listShifts(
+      { date: req.query.date, startDate: req.query.startDate, endDate: req.query.endDate, userId: req.query.userId },
+      actingUser
+    )
+  );
 });
 
 const deleteShift = asyncHandler(async (req, res) => {
@@ -37,6 +42,24 @@ const clockIn = asyncHandler(async (req, res) => {
 
 const clockOut = asyncHandler(async (req, res) => {
   res.json(await schedulingService.clockOut(req.user.id, req.ip));
+});
+
+const clockInFor = asyncHandler(async (req, res) => {
+  res.status(201).json(await schedulingService.clockInFor(Number(req.params.userId), req.user.id, req.ip));
+});
+
+const clockOutFor = asyncHandler(async (req, res) => {
+  res.json(await schedulingService.clockOutFor(Number(req.params.userId), req.user.id, req.ip));
+});
+
+const getHoursSummary = asyncHandler(async (req, res) => {
+  const actingUser = await buildActingUser(req);
+  res.json(
+    await schedulingService.getHoursSummary(
+      { startDate: req.query.startDate, endDate: req.query.endDate, userId: req.query.userId },
+      actingUser
+    )
+  );
 });
 
 const listAttendance = asyncHandler(async (req, res) => {
@@ -53,4 +76,15 @@ const recordManualAttendance = asyncHandler(async (req, res) => {
   res.status(201).json(record);
 });
 
-module.exports = { createShift, listShifts, deleteShift, clockIn, clockOut, listAttendance, recordManualAttendance };
+module.exports = {
+  createShift,
+  listShifts,
+  deleteShift,
+  clockIn,
+  clockOut,
+  clockInFor,
+  clockOutFor,
+  listAttendance,
+  recordManualAttendance,
+  getHoursSummary,
+};

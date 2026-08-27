@@ -55,16 +55,23 @@ async function createShift({ userId, shiftDate, startTime, endTime, notes, creat
   return db('staff_shifts').where({ id: created.id }).first();
 }
 
-async function listShifts({ date, userId }, actingUser) {
+// `date` (single day, the original behavior) and `startDate`/`endDate` (a range, added for the
+// weekly calendar view) are mutually exclusive — `date` wins if both are somehow passed. `role`
+// (joined from `roles.name`) lets the calendar filter to e.g. just Doctor shifts without a
+// separate endpoint.
+async function listShifts({ date, startDate, endDate, userId }, actingUser) {
   let query = db('staff_shifts')
     .join('users', 'users.id', 'staff_shifts.user_id')
-    .select('staff_shifts.*', 'users.full_name as user_name')
+    .join('roles', 'roles.id', 'users.role_id')
+    .select('staff_shifts.*', 'users.full_name as user_name', 'roles.name as role')
     .orderBy('staff_shifts.shift_date')
     .orderBy('staff_shifts.start_time');
 
   query = scopeToSelfUnlessManager(query, actingUser, userId, 'staff_shifts.user_id');
   if (date) {
     query = query.andWhere('staff_shifts.shift_date', date);
+  } else if (startDate && endDate) {
+    query = query.andWhere('staff_shifts.shift_date', '>=', startDate).andWhere('staff_shifts.shift_date', '<=', endDate);
   }
   return query;
 }
@@ -125,6 +132,57 @@ async function clockOut(userId, ipAddress) {
   return db('attendance_records').where({ user_id: userId, attendance_date: today }).first();
 }
 
+// Management/Admin clocking a *different* staff member in/out in real time (e.g. a doctor who
+// doesn't log into the system themselves) — distinct from the self-service clockIn/clockOut
+// above, which only ever touch the caller's own row. Route-gated by scheduling.manage; sets
+// recorded_by to the acting manager (self-clocks leave it NULL, per the migration's own
+// comment on that column), so it's clear in the data which rows were a manager action.
+async function clockInFor(targetUserId, recordedBy, ipAddress) {
+  const target = await db('users').where({ id: targetUserId }).first();
+  if (!target) {
+    throw new ApiError(404, 'Staff user not found.');
+  }
+  const today = todayDateString();
+  const existing = await db('attendance_records').where({ user_id: targetUserId, attendance_date: today }).first();
+  if (existing && existing.clock_in_at) {
+    throw new ApiError(400, 'This staff member is already clocked in today.');
+  }
+
+  if (existing) {
+    await db('attendance_records')
+      .where({ id: existing.id })
+      .update({ clock_in_at: db.fn.now(), recorded_by: recordedBy, updated_at: db.fn.now() });
+  } else {
+    await db('attendance_records').insert({
+      user_id: targetUserId,
+      attendance_date: today,
+      clock_in_at: db.fn.now(),
+      recorded_by: recordedBy,
+    });
+  }
+
+  await auditLog.write({ userId: recordedBy, action: 'scheduling.clock_in_for', entityType: 'attendance_record', entityId: targetUserId, ipAddress });
+  return db('attendance_records').where({ user_id: targetUserId, attendance_date: today }).first();
+}
+
+async function clockOutFor(targetUserId, recordedBy, ipAddress) {
+  const today = todayDateString();
+  const existing = await db('attendance_records').where({ user_id: targetUserId, attendance_date: today }).first();
+  if (!existing || !existing.clock_in_at) {
+    throw new ApiError(400, 'This staff member has not clocked in today.');
+  }
+  if (existing.clock_out_at) {
+    throw new ApiError(400, 'This staff member is already clocked out today.');
+  }
+
+  await db('attendance_records')
+    .where({ id: existing.id })
+    .update({ clock_out_at: db.fn.now(), recorded_by: recordedBy, updated_at: db.fn.now() });
+
+  await auditLog.write({ userId: recordedBy, action: 'scheduling.clock_out_for', entityType: 'attendance_record', entityId: targetUserId, ipAddress });
+  return db('attendance_records').where({ user_id: targetUserId, attendance_date: today }).first();
+}
+
 async function listAttendance({ date, userId }, actingUser) {
   let query = db('attendance_records')
     .join('users', 'users.id', 'attendance_records.user_id')
@@ -174,12 +232,57 @@ async function recordManualAttendance({ userId, attendanceDate, status, clockInA
   return db('attendance_records').where({ user_id: userId, attendance_date: attendanceDate }).first();
 }
 
+function round2(n) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+// Hours of service actually provided, per staff member, over a date range — summed from real
+// clock_in_at/clock_out_at timestamps (only rows where both are set contribute; a day marked
+// on_leave/absent, or a forgotten clock-out, contributes 0 rather than a guessed value). Nothing
+// like this existed anywhere before — Daily Activity's staffAttendance is a same-day count of
+// rows by status, not a duration calculation.
+async function getHoursSummary({ startDate, endDate, userId }, actingUser) {
+  if (!startDate || !endDate) {
+    throw new ApiError(400, 'startDate and endDate are required (YYYY-MM-DD).');
+  }
+
+  let query = db('attendance_records')
+    .join('users', 'users.id', 'attendance_records.user_id')
+    .join('roles', 'roles.id', 'users.role_id')
+    .whereNotNull('attendance_records.clock_in_at')
+    .whereNotNull('attendance_records.clock_out_at')
+    .andWhere('attendance_records.attendance_date', '>=', startDate)
+    .andWhere('attendance_records.attendance_date', '<=', endDate)
+    .groupBy('attendance_records.user_id', 'users.full_name', 'roles.name')
+    .orderBy('users.full_name')
+    .select(
+      'attendance_records.user_id',
+      'users.full_name as user_name',
+      'roles.name as role',
+      db.raw('sum(extract(epoch from (attendance_records.clock_out_at - attendance_records.clock_in_at)) / 3600) as total_hours'),
+      db.raw('count(*) as days_recorded')
+    );
+
+  query = scopeToSelfUnlessManager(query, actingUser, userId, 'attendance_records.user_id');
+  const rows = await query;
+  return rows.map((row) => ({
+    userId: row.user_id,
+    userName: row.user_name,
+    role: row.role,
+    totalHours: round2(Number(row.total_hours)),
+    daysRecorded: Number(row.days_recorded),
+  }));
+}
+
 module.exports = {
   createShift,
   listShifts,
   deleteShift,
   clockIn,
   clockOut,
+  clockInFor,
+  clockOutFor,
   listAttendance,
   recordManualAttendance,
+  getHoursSummary,
 };
